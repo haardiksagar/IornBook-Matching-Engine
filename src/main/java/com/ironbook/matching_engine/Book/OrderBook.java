@@ -179,6 +179,15 @@ public class OrderBook {
             }
         }
  
-        
+        if (incoming.getRemainingQuantity() > 0) {
+            // stopping condition #1 partially met, or #2/#3 hit with leftover -
+            // whatever's left rests in this order's OWN book
+            incoming.setStatus(OrderStatus.NEW);
+            addOrder(incoming); // the leftover 2 shares get inserted into the book, to wait for a future match
+        } else {
+            incoming.setStatus(OrderStatus.FILLED);
+        }
+ 
+        return trades;
     }
 }
