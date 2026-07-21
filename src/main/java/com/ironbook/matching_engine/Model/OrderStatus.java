@@ -1,7 +1,7 @@
 package com.ironbook.matching_engine.Model;
 
 public enum OrderStatus {
-    PENDING,
+    NEW,
     PARTIALLY_FILLED,
     FILLED,
     CANCELLED
