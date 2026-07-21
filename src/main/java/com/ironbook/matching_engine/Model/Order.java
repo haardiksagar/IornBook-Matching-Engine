@@ -40,6 +40,9 @@ public class Order {
     public void setRemainingQuantity(int remainingQuantity) {
         this.remainingQuantity = remainingQuantity;
     }
+    public void reduceRemainingQuantity(int qty) {
+        this.remainingQuantity -= qty;
+    }
     public long getTimestamp() {
         return timestamp;
     }
