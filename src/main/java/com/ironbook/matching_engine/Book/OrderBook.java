@@ -163,6 +163,9 @@ public class OrderBook {
             );
             trades.add(trade);
  
+            incoming.reduceRemainingQuantity(matchedQty);
+            resting.reduceRemainingQuantity(matchedQty);
+ 
             
     }
 }
