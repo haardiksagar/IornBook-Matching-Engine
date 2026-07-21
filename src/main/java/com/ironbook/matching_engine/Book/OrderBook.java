@@ -166,6 +166,19 @@ public class OrderBook {
             incoming.reduceRemainingQuantity(matchedQty);
             resting.reduceRemainingQuantity(matchedQty);
  
-            
+            if (resting.getRemainingQuantity() == 0) {
+                level.poll(); // remove #101 from the front of the queue - it's done, no longer waiting
+                orderIndex.remove(resting.getOrderId()); // it no longer exists in the book, so cancellation lookup should forget it too
+                resting.setStatus(OrderStatus.FILLED); // mark it FILLED for record-keeping
+ 
+                if (level.isEmpty()) {
+                    oppositeBook.remove(bestPrice, level);
+                }
+            } else {
+                resting.setStatus(OrderStatus.PARTIALLY_FILLED);
+            }
+        }
+ 
+        
     }
 }
