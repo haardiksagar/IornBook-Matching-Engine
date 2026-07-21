@@ -102,7 +102,7 @@ public class OrderBook {
 
     // simple unique trade ID source - swap for UUID if you prefer
     private final AtomicLong tradeSequence = new AtomicLong(0);
-    
+
     /**
      * Attempts to match an incoming order against the OPPOSITE book.
      * Keeps matching (possibly against multiple resting orders) until
@@ -163,31 +163,6 @@ public class OrderBook {
             );
             trades.add(trade);
  
-            incoming.reduceRemainingQuantity(matchedQty);
-            resting.reduceRemainingQuantity(matchedQty);
- 
-            if (resting.getRemainingQuantity() == 0) {
-                level.poll(); // remove the fully-filled order from the front
-                orderIndex.remove(resting.getOrderId());
-                resting.setStatus(OrderStatus.FILLED);
- 
-                if (level.isEmpty()) {
-                    oppositeBook.remove(bestPrice, level);
-                }
-            } else {
-                resting.setStatus(OrderStatus.PARTIALLY_FILLED);
-            }
-        }
- 
-        if (incoming.getRemainingQuantity() > 0) {
-            // stopping condition #1 partially met, or #2/#3 hit with leftover -
-            // whatever's left rests in this order's OWN book
-            incoming.setStatus(OrderStatus.NEW);
-            addOrder(incoming);
-        } else {
-            incoming.setStatus(OrderStatus.FILLED);
-        }
- 
-        return trades;
+            
     }
 }
