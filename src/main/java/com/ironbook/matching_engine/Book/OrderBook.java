@@ -8,6 +8,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import com.ironbook.matching_engine.Model.Order;
 import com.ironbook.matching_engine.Model.OrderStatus;
 import com.ironbook.matching_engine.Model.Side;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
+import com.ironbook.matching_engine.Model.Trade;
+import java.util.List;
 
 public class OrderBook {
     private final ConcurrentSkipListMap<Long, Queue<Order>> bidBook = new ConcurrentSkipListMap<>(
@@ -94,4 +98,98 @@ public class OrderBook {
     private ConcurrentSkipListMap<Long, Queue<Order>> bookFor(Side side) {
         return side == Side.BUY ? bidBook : askBook;
     }
+
+
+    // simple unique trade ID source - swap for UUID if you prefer
+    private final AtomicLong tradeSequence = new AtomicLong(0);
+    
+    /**
+     * Attempts to match an incoming order against the OPPOSITE book.
+     * Keeps matching (possibly against multiple resting orders) until
+     * either:
+     *   1) the incoming order's remaining quantity hits zero, or
+     *   2) the opposite book has nothing left, or
+     *   3) the next best opposite price no longer crosses.
+     *
+     * Any quantity left over after that gets added to this order's OWN
+     * book via addOrder(), to rest and wait for a future match.
+     *
+     * Returns the list of trades produced (could be empty, one, or many).
+     */
+    public List<Trade> submitOrder(Order incoming) {
+        List<Trade> trades = new ArrayList<>();
+        ConcurrentSkipListMap<Long, Queue<Order>> oppositeBook =
+                incoming.getSide() == Side.BUY ? askBook : bidBook;
+ 
+        while (incoming.getRemainingQuantity() > 0) {
+            Map.Entry<Long, Queue<Order>> bestEntry = oppositeBook.firstEntry();
+            if (bestEntry == null) {
+                break; // stopping condition #2 - nothing left to match against
+            }
+ 
+            long bestPrice = bestEntry.getKey();
+            boolean crosses = incoming.getSide() == Side.BUY
+                    ? incoming.getPrice() >= bestPrice   // buyer willing to pay at least the ask
+                    : incoming.getPrice() <= bestPrice;  // seller willing to accept at most the bid
+ 
+            if (!crosses) {
+                break; // stopping condition #3 - best opposite price is no longer acceptable
+            }
+ 
+            Queue<Order> level = bestEntry.getValue();
+            Order resting = level.peek(); // earliest arrival at this price - time priority
+ 
+            if (resting == null) {
+                // level exists but is empty (rare edge case) - clean up and retry
+                oppositeBook.remove(bestPrice, level);
+                continue;
+            }
+ 
+            int matchedQty = Math.min(incoming.getRemainingQuantity(), resting.getRemainingQuantity());
+ 
+            // Trade executes at the RESTING order's price, not the incoming
+            // order's price - the resting order already committed to a price
+            // and waited; the incoming order only had to cross it, not set it.
+            String buyOrderId = incoming.getSide() == Side.BUY ? incoming.getOrderId() : resting.getOrderId();
+            String sellOrderId = incoming.getSide() == Side.SELL ? incoming.getOrderId() : resting.getOrderId();
+ 
+            Trade trade = new Trade(
+                    "T-" + tradeSequence.incrementAndGet(),
+                    buyOrderId,
+                    sellOrderId,
+                    bestPrice,
+                    matchedQty,
+                    System.currentTimeMillis()
+            );
+            trades.add(trade);
+ 
+            incoming.reduceRemainingQuantity(matchedQty);
+            resting.reduceRemainingQuantity(matchedQty);
+ 
+            if (resting.getRemainingQuantity() == 0) {
+                level.poll(); // remove the fully-filled order from the front
+                orderIndex.remove(resting.getOrderId());
+                resting.setStatus(OrderStatus.FILLED);
+ 
+                if (level.isEmpty()) {
+                    oppositeBook.remove(bestPrice, level);
+                }
+            } else {
+                resting.setStatus(OrderStatus.PARTIALLY_FILLED);
+            }
+        }
+ 
+        if (incoming.getRemainingQuantity() > 0) {
+            // stopping condition #1 partially met, or #2/#3 hit with leftover -
+            // whatever's left rests in this order's OWN book
+            incoming.setStatus(OrderStatus.NEW);
+            addOrder(incoming);
+        } else {
+            incoming.setStatus(OrderStatus.FILLED);
+        }
+ 
+        return trades;
+    }
+}
+
 }
