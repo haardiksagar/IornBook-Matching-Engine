@@ -52,4 +52,9 @@ public class MatchingEngine {
     public OrderBook getOrderBook() {
         return orderBook;
     }
+
+    //added by antigravity
+    public void shutdown() {
+        writeAheadLog.close();
+    }
 }
