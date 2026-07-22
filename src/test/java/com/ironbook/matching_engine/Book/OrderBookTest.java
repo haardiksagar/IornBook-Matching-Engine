@@ -39,9 +39,10 @@ class OrderBookTest {
         assertEquals(OrderStatus.NEW, sell.getStatus());
     }
 
+    @Test
     void priceTimePriority_earlierOrderAtSamePriceMatchesFirst() {
         // Arrange: two sell orders at the SAME price, arriving in order
-        Order firstSeller = new Order("S1", Side.SELL, 150, 10, 1000L, 1); // arrives first
+        Order firstSeller = new Order("S1", Side.SELL, 150, 10, 1000L, 1);  // arrives first
         Order secondSeller = new Order("S2", Side.SELL, 150, 10, 1001L, 2); // arrives second
         book.submitOrder(firstSeller);
         book.submitOrder(secondSeller);
