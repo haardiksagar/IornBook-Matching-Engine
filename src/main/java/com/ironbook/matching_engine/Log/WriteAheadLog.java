@@ -1,6 +1,6 @@
 package com.ironbook.matching_engine.Log;
 
-
+import com.ironbook.matching_engine.Model.Order;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
