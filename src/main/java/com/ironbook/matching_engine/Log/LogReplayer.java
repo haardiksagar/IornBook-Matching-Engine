@@ -53,7 +53,7 @@ public class LogReplayer {
 
                 try {
                     Order order = parseLine(line);
-                    orderBook.addOrder(order);
+                    orderBook.submitOrder(order);
                     maxSequenceSeen = Math.max(maxSequenceSeen, order.getSequenceNumber());
                 } catch (Exception e) {
                     // One corrupted line (e.g. from a crash mid-write) should
@@ -65,7 +65,7 @@ public class LogReplayer {
 
             /*
             Lines 47-49: Safety check. If there's an empty line, skip it.
-            
+
             Line 51 (try): We put the processing inside an inner try block. This is excellent 
             defensive programming. If one single line is corrupted, it won't crash the entire 
             replay process.
