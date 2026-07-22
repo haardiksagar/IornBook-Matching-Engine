@@ -50,7 +50,7 @@ public class LogReplayer {
 
                 try {
                     Order order = parseLine(line);
-                    orderBook.submitOrder(order);
+                    orderBook.addOrder(order);
                     maxSequenceSeen = Math.max(maxSequenceSeen, order.getSequenceNumber());
                 } catch (Exception e) {
                     // One corrupted line (e.g. from a crash mid-write) should
