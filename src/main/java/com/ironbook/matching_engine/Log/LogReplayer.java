@@ -22,6 +22,48 @@ import java.io.IOException;
  */
 public class LogReplayer {
 
+    /**
+     * Replays every order in the log file into the given OrderBook.
+     * Returns the highest sequenceNumber seen, so the caller can
+     * advance their live AtomicLong counter past it before accepting
+     * new orders - otherwise a new order could reuse an old sequence
+     * number.
+     */
+    public long replay(String filePath, OrderBook orderBook) throws IOException {
+        File file = new File(filePath);
+
+        if (!file.exists()) {
+            return 0; // first-ever run - nothing to replay, counter starts at 0
+        }
+
+        long maxSequenceSeen = 0;
+        int lineNumber = 0;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+
+                if (line.isBlank()) {
+                    continue; // skip stray empty lines silently
+                }
+
+                try {
+                    Order order = parseLine(line);
+                    orderBook.submitOrder(order);
+                    maxSequenceSeen = Math.max(maxSequenceSeen, order.getSequenceNumber());
+                } catch (Exception e) {
+                    // One corrupted line (e.g. from a crash mid-write) should
+                    // NOT prevent the whole engine from starting up.
+                    System.err.println("Skipping malformed log line " + lineNumber
+                            + ": \"" + line + "\" (" + e.getMessage() + ")");
+                }
+            }
+        }
+
+        return maxSequenceSeen;
+    }
+
     private Order parseLine(String line) {
         String[] parts = line.split(",");
 
