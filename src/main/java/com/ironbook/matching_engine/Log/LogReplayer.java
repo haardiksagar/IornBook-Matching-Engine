@@ -22,5 +22,16 @@ import java.io.IOException;
  */
 public class LogReplayer {
 
+    private Order parseLine(String line) {
+        String[] parts = line.split(",");
 
+        String orderId = parts[0];
+        Side side = Side.valueOf(parts[1]);
+        long price = Long.parseLong(parts[2]);
+        int quantity = Integer.parseInt(parts[3]);
+        long timestamp = Long.parseLong(parts[4]);
+        long sequenceNumber = Long.parseLong(parts[5]);
+
+        return new Order(orderId, side, price, quantity, timestamp, sequenceNumber);
+    }
 }
