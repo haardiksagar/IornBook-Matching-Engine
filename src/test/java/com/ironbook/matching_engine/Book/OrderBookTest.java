@@ -122,5 +122,45 @@ class OrderBookTest {
         assertNull(book.bestAsk(), "Book should be empty after cancelling the only resting order");
     }
 
+    @Test
+    void cancelOrder_nonExistentIdReturnsFalse() {
+        // Act & Assert: cancelling something that was never placed
+        // shouldn't throw an exception - it should just report failure
+        boolean cancelled = book.cancelOrder("does-not-exist");
+        assertFalse(cancelled);
+    }
 
+    @Test
+    void cancelOrder_partiallyFilledOrderCanStillBeCancelled() {
+        // Arrange: seller rests with 10, buyer takes 4, leaving 6 resting
+        Order seller = new Order("S1", Side.SELL, 150, 10, 1000L, 1);
+        book.submitOrder(seller);
+
+        Order buyer = new Order("B1", Side.BUY, 150, 4, 1001L, 2);
+        book.submitOrder(buyer);
+        assertEquals(6, seller.getRemainingQuantity());
+
+        // Act: cancel the remaining 6
+        boolean cancelled = book.cancelOrder("S1");
+
+        // Assert
+        assertTrue(cancelled);
+        assertNull(book.bestAsk(), "The partially-filled remainder should now be gone too");
+    }
+
+    @Test
+    void noMatch_whenPricesDoNotCross() {
+        // Arrange: seller wants 151, buyer only offers 150 - should NOT cross
+        Order seller = new Order("S1", Side.SELL, 151, 10, 1000L, 1);
+        book.submitOrder(seller);
+
+        // Act
+        Order buyer = new Order("B1", Side.BUY, 150, 10, 1001L, 2);
+        List<Trade> trades = book.submitOrder(buyer);
+
+        // Assert: no trade, both orders should now be resting on their own sides
+        assertTrue(trades.isEmpty());
+        assertEquals(151L, book.bestAsk().getKey());
+        assertEquals(150L, book.bestBid().getKey());
+    }
 }
