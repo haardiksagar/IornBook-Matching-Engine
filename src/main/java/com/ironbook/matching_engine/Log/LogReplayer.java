@@ -40,6 +40,9 @@ public class LogReplayer {
         int lineNumber = 0;
 
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        /*Line 42: BufferedReader is the fastest way to read large text files in Java. 
+        The try (...) syntax is special: it guarantees that Java will automatically close the 
+        file when it's done, even if a crash happens.*/
             String line;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
@@ -59,6 +62,24 @@ public class LogReplayer {
                             + ": \"" + line + "\" (" + e.getMessage() + ")");
                 }
             }
+
+            /*
+            Lines 47-49: Safety check. If there's an empty line, skip it.
+            
+            Line 51 (try): We put the processing inside an inner try block. This is excellent 
+            defensive programming. If one single line is corrupted, it won't crash the entire 
+            replay process.
+
+            Line 52: Calls the helper method below to turn the comma-separated string into a real 
+            Order object.
+
+            Line 53: Pushes the order into the OrderBook. Because matching is deterministic, 
+            pushing the exact same historical orders into the book will perfectly recreate the 
+            exact same matches and final state.
+
+            Line 54: Updates the maxSequenceSeen to be whichever is higher: the current max, or 
+            the sequence number of this specific order.
+            */
         }
 
         return maxSequenceSeen;
