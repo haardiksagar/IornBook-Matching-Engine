@@ -45,8 +45,22 @@ public class MatchingEngine {
      * process - exactly the rule we established earlier.
      */
     public void handleNewOrder(Order order) {
-        writeAheadLog.append(order); // durable record, BEFORE processing
-        orderBook.submitOrder(order); // now actually match it
+        long seq = sequenceCounter.getAndIncrement();
+        
+        // We create a brand new, identical copy of the order, but we stamp it with 
+        // the sequence number. This perfectly satisfies the "set exactly once in 
+        // the constructor" rule and keeps the sequence number 'final'.
+        Order stampedOrder = new Order(
+                order.getOrderId(),
+                order.getSide(),
+                order.getPrice(),
+                order.getOriginalQuantity(),
+                order.getTimestamp(),
+                seq
+        );
+
+        writeAheadLog.append(stampedOrder); // durable record, BEFORE processing
+        orderBook.submitOrder(stampedOrder); // now actually match it
     }
 
     public OrderBook getOrderBook() {
