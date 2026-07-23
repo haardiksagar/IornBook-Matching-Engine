@@ -4,6 +4,7 @@ import com.ironbook.matching_engine.Book.OrderBook;
 import com.ironbook.matching_engine.Log.LogReplayer;
 import com.ironbook.matching_engine.Log.WriteAheadLog;
 import com.ironbook.matching_engine.Model.Order;
+import com.ironbook.matching_engine.Model.Side;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -48,7 +49,26 @@ public class MatchingEngine {
         writeAheadLog.append(order); // durable record, BEFORE processing
         orderBook.submitOrder(order); // now actually match it
     }
-
+/**
+     * For a genuinely brand-new order arriving live (e.g. from a client
+     * over the network) that does NOT have a sequence number yet.
+     * This is the ONLY place a new sequence number should ever be
+     * generated - using the engine's single shared counter, already
+     * correctly seeded past history by replay in the constructor.
+     *
+     * The Order is only constructed once every field - including the
+     * real sequenceNumber - is already known. No throwaway object,
+     * no "build it wrong then copy it right" step.
+     */
+    public void submitNewOrder(String orderId, Side side, long price, int quantity) {
+        long sequenceNumber = sequenceCounter.incrementAndGet();
+        long timestamp = System.currentTimeMillis();
+ 
+        Order order = new Order(orderId, side, price, quantity, timestamp, sequenceNumber);
+ 
+        handleNewOrder(order); // reuses the same log-then-process logic above
+    }
+ 
     public OrderBook getOrderBook() {
         return orderBook;
     }
