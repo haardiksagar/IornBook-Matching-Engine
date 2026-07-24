@@ -2,9 +2,9 @@ package com.ironbook.matching_engine.Book;
 
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.TreeMap;
 import com.ironbook.matching_engine.Model.Order;
 import com.ironbook.matching_engine.Model.OrderStatus;
 import com.ironbook.matching_engine.Model.Side;
@@ -13,13 +13,41 @@ import java.util.ArrayList;
 import com.ironbook.matching_engine.Model.Trade;
 import java.util.List;
 
+/**
+ * The core order book: two sorted price-level maps (bids descending,
+ * asks ascending) and a fast orderId lookup index.
+ *
+ * THREAD SAFETY NOTE (TICKET-13):
+ * ================================
+ * This class uses PLAIN (non-concurrent) collections: TreeMap,
+ * LinkedList, HashMap. This is safe — and intentionally faster —
+ * because the MatchingEngine's sequencer pattern guarantees that
+ * only ONE thread (the sequencer) ever reads or writes this class.
+ *
+ * Before TICKET-13, we used ConcurrentSkipListMap, ConcurrentLinkedQueue,
+ * and ConcurrentHashMap "just in case." Those are slower because they
+ * add internal synchronization overhead on every read and write.
+ * Now that we have an architectural guarantee of single-threaded
+ * access, we can safely use the faster plain versions.
+ *
+ * TreeMap replaces ConcurrentSkipListMap — same O(log n) sorted
+ * access, but without lock overhead.
+ * LinkedList replaces ConcurrentLinkedQueue — same FIFO queue
+ * behavior, but without CAS overhead.
+ * HashMap replaces ConcurrentHashMap — same O(1) lookup, but
+ * without segment locking overhead.
+ */
 public class OrderBook {
-    private final ConcurrentSkipListMap<Long, Queue<Order>> bidBook = new ConcurrentSkipListMap<>(
+
+    // Bids: highest price first (buyer willing to pay the most gets priority)
+    private final TreeMap<Long, Queue<Order>> bidBook = new TreeMap<>(
             java.util.Collections.reverseOrder());
 
-    private final ConcurrentSkipListMap<Long, Queue<Order>> askBook = new ConcurrentSkipListMap<>();
+    // Asks: lowest price first (seller willing to accept the least gets priority)
+    private final TreeMap<Long, Queue<Order>> askBook = new TreeMap<>();
 
-    private final ConcurrentHashMap<String, Order> orderIndex = new ConcurrentHashMap<>();
+    // Fast O(1) lookup by orderId — used for cancellation
+    private final HashMap<String, Order> orderIndex = new HashMap<>();
 
     /**
      * Adds a new resting order to the correct book, at the correct price level.
@@ -28,14 +56,13 @@ public class OrderBook {
      * still has quantity remaining.
      */
     public void addOrder(Order order) {
-        ConcurrentSkipListMap<Long, Queue<Order>> book = bookFor(order.getSide());
+        TreeMap<Long, Queue<Order>> book = bookFor(order.getSide());
 
-        // computeIfAbsent is atomic - if two threads insert the first order
-        // at a brand-new price level at the same time, only one queue gets
-        // created and both orders land in it safely.
+        // computeIfAbsent: if no queue exists yet at this price level,
+        // create one. If one already exists, reuse it.
         Queue<Order> level = book.computeIfAbsent(
                 order.getPrice(),
-                price -> new ConcurrentLinkedQueue<>()// the queue is concurrent
+                price -> new LinkedList<>()
         );
 
         level.add(order);
@@ -53,8 +80,8 @@ public class OrderBook {
             return false; // nothing to cancel - already gone
         }
 
-        // 1. get the right SkipListMap
-        ConcurrentSkipListMap<Long, Queue<Order>> book = bookFor(order.getSide());
+        // 1. get the right TreeMap
+        TreeMap<Long, Queue<Order>> book = bookFor(order.getSide());
         // 2. get the right queue using price
         Queue<Order> level = book.get(order.getPrice());
 
@@ -62,17 +89,13 @@ public class OrderBook {
             return false; // shouldn't normally happen, but don't blow up
         }
 
-        // Note: ConcurrentLinkedQueue.remove(Object) is O(n) WITHIN this one
-        // price level's queue - not O(n) across the whole book. Order objects
-        // should rely on identity/orderId equality here, not full field equality.
-
-        // 3.remove the value
+        // 3. remove the order from its price level
         level.remove(order);
 
         // Clean up empty price levels so the book doesn't accumulate
         // dead entries forever.
         if (level.isEmpty()) {
-            book.remove(order.getPrice(), level);
+            book.remove(order.getPrice());
         }
 
         order.setStatus(OrderStatus.CANCELLED);
@@ -81,7 +104,7 @@ public class OrderBook {
 
     /**
      * Returns the best (lowest) ask price level, or null if the ask
-     * book is empty. O(log n) via the skip list's firstEntry().
+     * book is empty. O(log n) via the TreeMap's firstEntry().
      */
     public Map.Entry<Long, Queue<Order>> bestAsk() {
         return askBook.firstEntry();
@@ -95,7 +118,7 @@ public class OrderBook {
         return bidBook.firstEntry();
     }
 
-    private ConcurrentSkipListMap<Long, Queue<Order>> bookFor(Side side) {
+    private TreeMap<Long, Queue<Order>> bookFor(Side side) {
         return side == Side.BUY ? bidBook : askBook;
     }
 
@@ -118,7 +141,7 @@ public class OrderBook {
      */
     public List<Trade> submitOrder(Order incoming) {
         List<Trade> trades = new ArrayList<>();
-        ConcurrentSkipListMap<Long, Queue<Order>> oppositeBook =
+        TreeMap<Long, Queue<Order>> oppositeBook =
                 incoming.getSide() == Side.BUY ? askBook : bidBook;
  
         while (incoming.getRemainingQuantity() > 0) {
@@ -141,7 +164,7 @@ public class OrderBook {
  
             if (resting == null) {
                 // level exists but is empty (rare edge case) - clean up and retry
-                oppositeBook.remove(bestPrice, level);
+                oppositeBook.remove(bestPrice);
                 continue;
             }
  
@@ -167,12 +190,12 @@ public class OrderBook {
             resting.reduceRemainingQuantity(matchedQty);
  
             if (resting.getRemainingQuantity() == 0) {
-                level.poll(); // remove #101 from the front of the queue - it's done, no longer waiting
-                orderIndex.remove(resting.getOrderId()); // it no longer exists in the book, so cancellation lookup should forget it too
-                resting.setStatus(OrderStatus.FILLED); // mark it FILLED for record-keeping
+                level.poll(); // remove from the front of the queue - it's done
+                orderIndex.remove(resting.getOrderId());
+                resting.setStatus(OrderStatus.FILLED);
  
                 if (level.isEmpty()) {
-                    oppositeBook.remove(bestPrice, level);
+                    oppositeBook.remove(bestPrice);
                 }
             } else {
                 resting.setStatus(OrderStatus.PARTIALLY_FILLED);
@@ -180,10 +203,8 @@ public class OrderBook {
         }
  
         if (incoming.getRemainingQuantity() > 0) {
-            // stopping condition #1 partially met, or #2/#3 hit with leftover -
-            // whatever's left rests in this order's OWN book
             incoming.setStatus(OrderStatus.NEW);
-            addOrder(incoming); // the leftover 2 shares get inserted into the book, to wait for a future match
+            addOrder(incoming);
         } else {
             incoming.setStatus(OrderStatus.FILLED);
         }
