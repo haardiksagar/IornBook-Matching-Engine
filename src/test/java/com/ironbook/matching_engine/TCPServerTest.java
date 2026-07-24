@@ -106,6 +106,8 @@ class TCPServerTest {
         // First, get an order resting in the book directly through the
         // engine (not over the socket - simpler setup for this part)
         engine.submitNewOrder(com.ironbook.matching_engine.Model.Side.SELL, 150, 10);
+        // Wait for the sequencer to process the order before reading the book
+        engine.awaitIdle(2, java.util.concurrent.TimeUnit.SECONDS);
         Order restingOrder = engine.getOrderBook().bestAsk().getValue().peek();
         String orderId = restingOrder.getOrderId();
 
