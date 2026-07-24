@@ -54,6 +54,22 @@ public class WriteAheadLog {
         // lines that were still sitting in a buffer.
         writer.flush();
     }
+    /**
+     * Logs a cancellation as its own distinct event - not a fake Order.
+     * A cancel has no side/price/quantity, so it gets its own simple
+     * line format instead of being forced into append(Order)'s shape.
+     */
+    public synchronized void appendCancel(String orderId, long timestamp, long sequenceNumber) {
+        String line = String.join(",",
+                "CANCEL",
+                orderId,
+                String.valueOf(timestamp),
+                String.valueOf(sequenceNumber)
+        );
+ 
+        writer.println(line);
+        writer.flush();
+    }
     
     public synchronized void close() {
         writer.close();
