@@ -52,9 +52,8 @@ public class LogReplayer {
                 }
 
                 try {
-                    Order order = parseLine(line);
-                    orderBook.submitOrder(order);
-                    maxSequenceSeen = Math.max(maxSequenceSeen, order.getSequenceNumber());
+                    long sequenceNumber = replayLine(line, orderBook);
+                    maxSequenceSeen = Math.max(maxSequenceSeen, sequenceNumber);
                 } catch (Exception e) {
                     // One corrupted line (e.g. from a crash mid-write) should
                     // NOT prevent the whole engine from starting up.
