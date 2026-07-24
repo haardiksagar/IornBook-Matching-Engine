@@ -54,4 +54,32 @@ public class OrderMessageParser {
         }
     }
 
+    /**
+     * Parses one raw line into a ParsedMessage.
+     * Throws IllegalArgumentException on anything malformed - the
+     * caller (TcpServer) decides what to do with a bad message (e.g.
+     * log it and skip, rather than crash the whole connection).
+     */
+    public ParsedMessage parse(String rawLine) {
+        if (rawLine == null || rawLine.isBlank()) {
+            throw new IllegalArgumentException("Empty message");
+        }
+
+        String[] parts = rawLine.split(",");
+
+        if (parts.length == 0) {
+            throw new IllegalArgumentException("Malformed message: " + rawLine);
+        }
+
+        String messageKind = parts[0].trim().toUpperCase();
+
+        switch (messageKind) {
+            case "NEW":
+                return parseNewOrder(parts, rawLine);
+            case "CANCEL":
+                return parseCancel(parts, rawLine);
+            default:
+                throw new IllegalArgumentException("Unknown message type: " + messageKind);
+        }
+    }
 }
