@@ -74,7 +74,13 @@ public class MatchingEngine {
         return orderBook;
     }
 
-    // added by antigravity
+    /**
+     * Graceful, planned shutdown - releases the log file handle cleanly.
+     * Deliberately NOT called during crash-recovery tests: a real crash
+     * never gets to run cleanup code, so tests simulating a crash must
+     * abandon the engine without calling this, to accurately represent
+     * that worst-case scenario.
+     */
     public void shutdown() {
         writeAheadLog.close();
     }
