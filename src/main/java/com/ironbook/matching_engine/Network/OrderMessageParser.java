@@ -82,4 +82,30 @@ public class OrderMessageParser {
                 throw new IllegalArgumentException("Unknown message type: " + messageKind);
         }
     }
+
+    private ParsedMessage parseNewOrder(String[] parts, String rawLine) {
+        if (parts.length != 4) {
+            throw new IllegalArgumentException(
+                    "NEW order needs exactly 4 fields (NEW,side,price,quantity), got: " + rawLine);
+        }
+
+        try {
+            Side side = Side.valueOf(parts[1].trim().toUpperCase());
+            long price = Long.parseLong(parts[2].trim());
+            int quantity = Integer.parseInt(parts[3].trim());
+
+            if (price <= 0 || quantity <= 0) {
+                throw new IllegalArgumentException("Price and quantity must be positive: " + rawLine);
+            }
+
+            return ParsedMessage.newOrder(side, price, quantity);
+
+        } catch (IllegalArgumentException e) {
+            // catches both Side.valueOf() failures and number parsing
+            // failures, and re-throws with the original bad line
+            // included, so whoever logs this can see exactly what
+            // the client actually sent.
+            throw new IllegalArgumentException("Invalid NEW order: " + rawLine, e);
+        }
+    }
 }
