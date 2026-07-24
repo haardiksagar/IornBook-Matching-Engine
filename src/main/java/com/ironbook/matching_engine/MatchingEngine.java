@@ -70,8 +70,17 @@ public class MatchingEngine {
         handleNewOrder(order); // reuses the same log-then-process logic above
     }
     
-    public void completeCancleOrder(String OrderId){
-        
+    public void cancelOrder(Order order){
+        writeAheadLog.append(order); 
+        orderBook.cancelOrder(order.getOrderId());
+    }
+    
+    public void completeCancleOrder(String orderId){
+        long sequenceNumber = sequenceCounter.incrementAndGet();
+        long timestamp = System.currentTimeMillis();
+        Order order = new Order(orderId, null, 0, 0, timestamp, sequenceNumber);
+
+        cancelOrder(order);
     }
     
     public OrderBook getOrderBook() {

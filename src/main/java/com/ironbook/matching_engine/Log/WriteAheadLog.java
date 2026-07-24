@@ -54,7 +54,7 @@ public class WriteAheadLog {
         // lines that were still sitting in a buffer.
         writer.flush();
     }
-
+    
     public synchronized void close() {
         writer.close();
     }
