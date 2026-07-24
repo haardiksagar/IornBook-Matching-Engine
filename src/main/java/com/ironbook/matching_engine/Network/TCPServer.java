@@ -8,8 +8,10 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Listens for incoming TCP client connections and hands each one off
@@ -25,6 +27,11 @@ public class TCPServer {
     private final ExecutorService clientThreadPool;
     private ServerSocket serverSocket;
     private volatile boolean running = false;
+
+    // Starts at 1; drops to 0 the instant the socket is actually bound.
+    // Anyone calling awaitReady() blocks until that exact moment — no
+    // guessing, no sleeping, no hoping.
+    private final CountDownLatch readyLatch = new CountDownLatch(1);
 
     public TCPServer(int port, MatchingEngine engine) {
         this.port = port;
@@ -43,6 +50,7 @@ public class TCPServer {
     public void start() throws IOException {
         this.serverSocket = new ServerSocket(port);
         this.running = true;
+        readyLatch.countDown(); // signal: "I am NOW accepting connections"
         System.out.println("TcpServer listening on port " + port);
 
         while (running) {
@@ -84,8 +92,6 @@ public class TCPServer {
                         engine.submitNewOrder(message.side, message.price, message.quantity);
                     } else if (message.type == OrderMessageParser.MessageType.CANCEL) {
                         engine.cancelOrder(message.orderId);
-                        // on MatchingEngine yet, needs to be added
-                        System.err.println("Cancel not wired up yet: " + message.orderId);
                     }
 
                 } catch (IllegalArgumentException e) {
@@ -97,6 +103,19 @@ public class TCPServer {
         } catch (IOException e) {
             System.err.println("Client connection error: " + e.getMessage());
         }
+    }
+
+    /**
+     * Blocks the calling thread until the server socket is actually
+     * bound and accepting connections — or until the timeout expires.
+     * Returns true if the server became ready, false if it timed out.
+     *
+     * This replaces the old Thread.sleep() hack: instead of guessing
+     * how long to wait, the caller blocks on a CountDownLatch that
+     * the server counts down the exact instant it's truly ready.
+     */
+    public boolean awaitReady(long timeout, TimeUnit unit) throws InterruptedException {
+        return readyLatch.await(timeout, unit);
     }
 
     public void stop() throws IOException {
