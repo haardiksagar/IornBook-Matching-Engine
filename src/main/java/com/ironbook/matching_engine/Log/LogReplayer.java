@@ -84,6 +84,25 @@ public class LogReplayer {
         return maxSequenceSeen;
     }
 
+    /**
+     * Parses one line, applies it to the OrderBook, and returns the
+     * sequenceNumber it carried - used by replay() to track the
+     * highest one seen across the whole file.
+     */
+    private long replayLine(String line, OrderBook orderBook) {
+        String[] parts = line.split(",");
+        String lineType = parts[0];
+ 
+        switch (lineType) {
+            case "NEW":
+                return replayNewOrder(parts, orderBook);
+            case "CANCEL":
+                return replayCancel(parts, orderBook);
+            default:
+                throw new IllegalArgumentException("Unknown log line type: " + lineType);
+        }
+    }
+    
     private Order parseLine(String line) {
         String[] parts = line.split(",");
 
