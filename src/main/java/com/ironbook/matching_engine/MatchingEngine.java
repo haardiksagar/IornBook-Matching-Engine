@@ -69,7 +69,11 @@ public class MatchingEngine {
  
         handleNewOrder(order); // reuses the same log-then-process logic above
     }
- 
+    
+    public void completeCancleOrder(String OrderId){
+        
+    }
+    
     public OrderBook getOrderBook() {
         return orderBook;
     }

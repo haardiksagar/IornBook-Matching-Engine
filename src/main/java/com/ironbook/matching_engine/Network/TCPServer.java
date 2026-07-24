@@ -83,7 +83,7 @@ public class TCPServer {
                         //IMPORTANT: this is what calls the matching Engine
                         engine.submitNewOrder(message.side, message.price, message.quantity);
                     } else if (message.type == OrderMessageParser.MessageType.CANCEL) {
-                        // engine.cancelOrder(message.orderId) - doesn't exist
+                        engine.cancelOrder(message.orderId);
                         // on MatchingEngine yet, needs to be added
                         System.err.println("Cancel not wired up yet: " + message.orderId);
                     }
