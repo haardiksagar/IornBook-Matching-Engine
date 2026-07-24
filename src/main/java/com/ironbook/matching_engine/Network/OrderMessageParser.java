@@ -6,8 +6,8 @@ import com.ironbook.matching_engine.Model.Side;
  * Parses raw text lines from a client into a structured message.
  *
  * Format:
- *   NEW,side,price,quantity     e.g. "NEW,BUY,150,10"
- *   CANCEL,orderId               e.g. "CANCEL,O-247"
+ * NEW,side,price,quantity e.g. "NEW,BUY,150,10"
+ * CANCEL,orderId e.g. "CANCEL,O-247"
  *
  * Deliberately does NOT touch OrderBook, MatchingEngine, or sockets -
  * its only job is text-in, structured-object-out. This keeps it easy
@@ -75,9 +75,9 @@ public class OrderMessageParser {
 
         switch (messageKind) {
             case "NEW":
-                return parseNewOrder(parts, rawLine);
+                return parseNewOrder(parts, rawLine);// <- the object flows out through here
             case "CANCEL":
-                return parseCancel(parts, rawLine);
+                return parseCancel(parts, rawLine); // <- or here
             default:
                 throw new IllegalArgumentException("Unknown message type: " + messageKind);
         }
