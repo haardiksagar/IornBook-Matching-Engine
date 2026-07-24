@@ -79,6 +79,8 @@ public class TCPServer {
                     if (message.type == OrderMessageParser.MessageType.NEW_ORDER) {
                         // THIS is the line - this is the moment a parsed
                         // message actually reaches MatchingEngine.
+
+                        //IMPORTANT: this is what calls the matching Engine
                         engine.submitNewOrder(message.side, message.price, message.quantity);
                     } else if (message.type == OrderMessageParser.MessageType.CANCEL) {
                         // engine.cancelOrder(message.orderId) - doesn't exist
