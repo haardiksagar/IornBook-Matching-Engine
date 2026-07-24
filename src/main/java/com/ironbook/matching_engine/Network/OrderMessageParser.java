@@ -23,4 +23,35 @@ public class OrderMessageParser {
         CANCEL
     }
 
+    /**
+     * A small, plain data holder representing "whatever the client
+     * asked for, once parsed." Only the fields relevant to the actual
+     * type will be meaningfully set - e.g. a CANCEL message has
+     * orderId set, but side/price/quantity are left at defaults,
+     * since they were never present in that kind of message.
+     */
+    public static class ParsedMessage {
+        public final MessageType type;
+        public final Side side;
+        public final long price;
+        public final int quantity;
+        public final String orderId;
+
+        private ParsedMessage(MessageType type, Side side, long price, int quantity, String orderId) {
+            this.type = type;
+            this.side = side;
+            this.price = price;
+            this.quantity = quantity;
+            this.orderId = orderId;
+        }
+
+        static ParsedMessage newOrder(Side side, long price, int quantity) {
+            return new ParsedMessage(MessageType.NEW_ORDER, side, price, quantity, null);
+        }
+
+        static ParsedMessage cancel(String orderId) {
+            return new ParsedMessage(MessageType.CANCEL, null, 0, 0, orderId);
+        }
+    }
+
 }
