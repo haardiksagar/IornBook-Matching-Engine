@@ -39,6 +39,7 @@ public class WriteAheadLog {
      */
     public synchronized void append(Order order) {
         String line = String.join(",",
+                "NEW",
                 order.getOrderId(),
                 order.getSide().name(),
                 String.valueOf(order.getPrice()),
