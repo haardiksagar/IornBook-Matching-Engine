@@ -60,9 +60,10 @@ public class MatchingEngine {
      * real sequenceNumber - is already known. No throwaway object,
      * no "build it wrong then copy it right" step.
      */
-    public void submitNewOrder(String orderId, Side side, long price, int quantity) {
+    public void submitNewOrder(Side side, long price, int quantity) {
         long sequenceNumber = sequenceCounter.incrementAndGet();
         long timestamp = System.currentTimeMillis();
+        String orderId = "O-" + sequenceNumber;
  
         Order order = new Order(orderId, side, price, quantity, timestamp, sequenceNumber);
  

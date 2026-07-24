@@ -11,15 +11,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-
+/**
+ * Listens for incoming TCP client connections and hands each one off
+ * to a worker thread. This is TICKET-10 only: accepting connections
+ * and reading raw lines. Turning those lines into real Order objects
+ * and calling the engine is TICKET-11's job, wired in loosely here
+ * for now as a placeholder.
+ */
 public class TCPServer {
- 
+
     private final int port;
     private final MatchingEngine engine;
     private final ExecutorService clientThreadPool;
     private ServerSocket serverSocket;
     private volatile boolean running = false;
- 
+
     public TCPServer(int port, MatchingEngine engine) {
         this.port = port;
         this.engine = engine;
@@ -28,7 +34,7 @@ public class TCPServer {
         // an unbounded number of raw threads.
         this.clientThreadPool = Executors.newFixedThreadPool(10);
     }
- 
+
     /**
      * Starts the server. This method itself runs an infinite accept
      * loop, so call it from its own thread (e.g. in main()) unless
@@ -38,7 +44,7 @@ public class TCPServer {
         this.serverSocket = new ServerSocket(port);
         this.running = true;
         System.out.println("TcpServer listening on port " + port);
- 
+
         while (running) {
             try {
                 Socket clientSocket = serverSocket.accept(); // blocks here until someone connects
@@ -52,11 +58,13 @@ public class TCPServer {
             }
         }
     }
- 
+
     /**
      * Runs on a worker thread, one per connected client. Reads lines
      * from that one client until they disconnect.
      */
+    private final OrderMessageParser parser = new OrderMessageParser();
+
     private void handleClient(Socket clientSocket) {
         try (
                 clientSocket;
@@ -65,16 +73,30 @@ public class TCPServer {
         ) {
             String line;
             while ((line = reader.readLine()) != null) {
-                // TICKET-11 will replace this with real parsing +
-                // engine.submitNewOrder(...). For now, just prove
-                // connections and messages are actually arriving.
-                System.out.println("Received from client: " + line);
+                try {
+                    OrderMessageParser.ParsedMessage message = parser.parse(line);
+
+                    if (message.type == OrderMessageParser.MessageType.NEW_ORDER) {
+                        // THIS is the line - this is the moment a parsed
+                        // message actually reaches MatchingEngine.
+                        engine.submitNewOrder(message.side, message.price, message.quantity);
+                    } else if (message.type == OrderMessageParser.MessageType.CANCEL) {
+                        // engine.cancelOrder(message.orderId) - doesn't exist
+                        // on MatchingEngine yet, needs to be added
+                        System.err.println("Cancel not wired up yet: " + message.orderId);
+                    }
+
+                } catch (IllegalArgumentException e) {
+                    // one bad line from this client shouldn't kill their
+                    // whole connection - log it and keep reading
+                    System.err.println("Bad message from client: " + e.getMessage());
+                }
             }
         } catch (IOException e) {
             System.err.println("Client connection error: " + e.getMessage());
         }
     }
- 
+
     public void stop() throws IOException {
         running = false;
         if (serverSocket != null) {
