@@ -1,5 +1,6 @@
 HELP.md
 Ticket13.md 
+Ticket13_Explanation.md 
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
