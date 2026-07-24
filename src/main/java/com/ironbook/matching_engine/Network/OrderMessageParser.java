@@ -108,4 +108,18 @@ public class OrderMessageParser {
             throw new IllegalArgumentException("Invalid NEW order: " + rawLine, e);
         }
     }
+
+    private ParsedMessage parseCancel(String[] parts, String rawLine) {
+        if (parts.length != 2) {
+            throw new IllegalArgumentException(
+                    "CANCEL needs exactly 2 fields (CANCEL,orderId), got: " + rawLine);
+        }
+
+        String orderId = parts[1].trim();
+        if (orderId.isEmpty()) {
+            throw new IllegalArgumentException("CANCEL missing orderId: " + rawLine);
+        }
+
+        return ParsedMessage.cancel(orderId);
+    }
 }
