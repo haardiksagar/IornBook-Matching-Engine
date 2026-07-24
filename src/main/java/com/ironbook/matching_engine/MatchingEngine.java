@@ -70,17 +70,18 @@ public class MatchingEngine {
         handleNewOrder(order); // reuses the same log-then-process logic above
     }
     
-    public void cancelOrder(Order order){
-        writeAheadLog.append(order); 
-        orderBook.cancelOrder(order.getOrderId());
-    }
-    
-    public void completeCancleOrder(String orderId){
+    /**
+     * Cancels a resting order. Logs the cancellation as its own event
+     * FIRST (via appendCancel - a real durable record, not a fake
+     * Order), then removes it from the live book. No throwaway Order
+     * object is ever constructed - cancellation doesn't need one.
+     */
+    public void cancelOrder(String orderId) {
         long sequenceNumber = sequenceCounter.incrementAndGet();
         long timestamp = System.currentTimeMillis();
-        Order order = new Order(orderId, null, 0, 0, timestamp, sequenceNumber);
-
-        cancelOrder(order);
+ 
+        writeAheadLog.appendCancel(orderId, timestamp, sequenceNumber); // durable first
+        orderBook.cancelOrder(orderId); // then actually remove it
     }
     
     public OrderBook getOrderBook() {
