@@ -117,4 +117,14 @@ public class LogReplayer {
  
         return sequenceNumber;
     }
+
+       private long replayCancel(String[] parts, OrderBook orderBook) {
+        // CANCEL,orderId,timestamp,sequenceNumber
+        String orderId = parts[1];
+        long sequenceNumber = Long.parseLong(parts[3]);
+ 
+        orderBook.cancelOrder(orderId);
+ 
+        return sequenceNumber;
+    }
 }
