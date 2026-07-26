@@ -10,65 +10,65 @@ This is not a toy project — it implements the same core design principles that
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        TCP CLIENTS                                  │
-│           ┌──────────┐ ┌──────────┐ ┌──────────┐                    │
-│           │ Client 1 │ │ Client 2 │ │ Client N │                    │
-│           └────┬─────┘ └────┬─────┘ └────┬─────┘                    │
+│                        TCP CLIENTS                                   │
+│           ┌──────────┐ ┌──────────┐ ┌──────────┐                     │
+│           │ Client 1 │ │ Client 2 │ │ Client N │                     │
+│           └────┬─────┘ └────┬─────┘ └────┬─────┘                     │
 │                │            │            │                           │
 │ ═══════════════╪════════════╪════════════╪══════════════════════════ │
 │                ▼            ▼            ▼                           │
-│           ┌──────────────────────────────────┐                      │
-│           │         TCP SERVER               │                      │
-│           │   (Thread Pool - 10 workers)     │                      │
-│           │                                  │                      │
+│           ┌──────────────────────────────────┐                       │
+│           │         TCP SERVER               │                       │
+│           │   (Thread Pool - 10 workers)     │                       │
+│           │                                  │                       │
 │           │  Each client gets its own thread  │                      │
 │           │  Worker parses raw text into      │                      │
 │           │  EngineCommands, drops them       │                      │
 │           │  into the queue, and goes back    │                      │
 │           │  to listening immediately.        │                      │
-│           └──────────────┬───────────────────┘                      │
-│                          │                                          │
-│                          ▼                                          │
-│           ┌──────────────────────────────────┐                      │
+│           └──────────────┬───────────────────┘                       │
+│                          │                                           │
+│                          ▼                                           │
+│           ┌──────────────────────────────────┐                       │
 │           │    LinkedBlockingQueue (FIFO)     │                      │
-│           │                                  │                      │
+│           │                                  │                       │
 │           │  Thread-safe inbox. Multiple      │                      │
 │           │  producers (TCP threads), single  │                      │
 │           │  consumer (sequencer). Strict     │                      │
 │           │  first-in-first-out ordering.     │                      │
-│           └──────────────┬───────────────────┘                      │
-│                          │                                          │
-│                          ▼                                          │
-│           ┌──────────────────────────────────┐                      │
+│           └──────────────┬───────────────────┘                       │
+│                          │                                           │
+│                          ▼                                           │
+│           ┌──────────────────────────────────┐                       │
 │           │    SEQUENCER THREAD (single)      │                      │
-│           │                                  │                      │
+│           │                                  │                       │
 │           │  The ONLY thread that touches     │                      │
 │           │  the OrderBook or WAL. Pulls      │                      │
 │           │  commands one-at-a-time:          │                      │
-│           │                                  │                      │
+│           │                                  │                       │
 │           │  1. Write to log (durability)     │                      │
 │           │  2. Match in OrderBook (logic)    │                      │
 │           │  3. Next command                  │                      │
-│           └──────────┬───────┬───────────────┘                      │
-│                      │       │                                      │
-│              ┌───────┘       └───────┐                              │
-│              ▼                       ▼                              │
-│  ┌─────────────────────┐  ┌─────────────────────┐                  │
-│  │   Write-Ahead Log   │  │     Order Book       │                  │
-│  │                     │  │                      │                  │
-│  │  Append-only file.  │  │  Bids: TreeMap       │                  │
-│  │  Every event is     │  │    (highest first)   │                  │
-│  │  flushed to disk    │  │                      │                  │
-│  │  BEFORE the book    │  │  Asks: TreeMap       │                  │
-│  │  is touched. This   │  │    (lowest first)    │                  │
-│  │  is what survives   │  │                      │                  │
-│  │  a crash.           │  │  Index: HashMap      │                  │
-│  │                     │  │    (O(1) cancel)     │                  │
-│  └─────────────────────┘  └──────────────────────┘                  │
+│           └──────────┬───────┬───────────────┘                       │
+│                      │       │                                       │
+│              ┌───────┘       └───────┐                               │
+│              ▼                       ▼                               │
+│  ┌─────────────────────┐  ┌─────────────────────┐                    │
+│  │   Write-Ahead Log   │  │     Order Book       │                   │
+│  │                     │  │                      │                   │
+│  │  Append-only file.  │  │  Bids: TreeMap       │                   │
+│  │  Every event is     │  │    (highest first)   │                   │
+│  │  flushed to disk    │  │                      │                   │
+│  │  BEFORE the book    │  │  Asks: TreeMap       │                   │ 
+│  │  is touched. This   │  │    (lowest first)    │                   │
+│  │  is what survives   │  │                      │                   │
+│  │  a crash.           │  │  Index: HashMap      │                   │
+│  │                     │  │    (O(1) cancel)     │                   │
+│  └─────────────────────┘  └──────────────────────┘                   │
 │                                                                      │
 │  On restart, LogReplayer reads the log top-to-bottom and replays     │
 │  every event into a fresh OrderBook. Because matching is             │
-│  deterministic, the rebuilt state is identical to what existed        │
+│  deterministic, the rebuilt state is identical to what existed       │
 │  before the crash.                                                   │
 └──────────────────────────────────────────────────────────────────────┘
 ```
