@@ -32,6 +32,25 @@ public class TCPServer {
     // Anyone calling awaitReady() blocks until that exact moment — no
     // guessing, no sleeping, no hoping.
     private final CountDownLatch readyLatch = new CountDownLatch(1);
+    /*
+**** A CountDownLatch (Starting Gun / Alarm Clock)****
+A CountDownLatch does NOT stop or block incoming requests! It is simply a one-time alarm clock that 
+says: "Ready, Set, GO!"
+
+In our TCPServer, readyLatch is only used once when the server boots up:
+
+1. When you start the program, the server needs a few milliseconds to open port 9999.
+
+2. During those first few milliseconds, the latch is at 1 (gate closed), telling our tests: "Hold on, 
+don't send orders yet, I'm still booting up!"
+
+3. The exact instant port 9999 opens, the server calls readyLatch.countDown(), dropping it to 0.
+
+4. The gate opens and stays open forever!
+
+Once that latch hits 0, it never blocks, stops, or slows down any of the thousands of client requests 
+flooding into the server!
+    */
 
     public TCPServer(int port, MatchingEngine engine) {
         this.port = port;
