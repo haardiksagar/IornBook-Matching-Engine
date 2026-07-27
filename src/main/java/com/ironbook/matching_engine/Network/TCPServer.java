@@ -33,24 +33,29 @@ public class TCPServer {
     // guessing, no sleeping, no hoping.
     private final CountDownLatch readyLatch = new CountDownLatch(1);
     /*
-**** A CountDownLatch (Starting Gun / Alarm Clock)****
-A CountDownLatch does NOT stop or block incoming requests! It is simply a one-time alarm clock that 
-says: "Ready, Set, GO!"
-
-In our TCPServer, readyLatch is only used once when the server boots up:
-
-1. When you start the program, the server needs a few milliseconds to open port 9999.
-
-2. During those first few milliseconds, the latch is at 1 (gate closed), telling our tests: "Hold on, 
-don't send orders yet, I'm still booting up!"
-
-3. The exact instant port 9999 opens, the server calls readyLatch.countDown(), dropping it to 0.
-
-4. The gate opens and stays open forever!
-
-Once that latch hits 0, it never blocks, stops, or slows down any of the thousands of client requests 
-flooding into the server!
-    */
+     **** A CountDownLatch (Starting Gun / Alarm Clock)****
+     * A CountDownLatch does NOT stop or block incoming requests! It is simply a
+     * one-time alarm clock that
+     * says: "Ready, Set, GO!"
+     * 
+     * In our TCPServer, readyLatch is only used once when the server boots up:
+     * 
+     * 1. When you start the program, the server needs a few milliseconds to open
+     * port 9999.
+     * 
+     * 2. During those first few milliseconds, the latch is at 1 (gate closed),
+     * telling our tests: "Hold on,
+     * don't send orders yet, I'm still booting up!"
+     * 
+     * 3. The exact instant port 9999 opens, the server calls
+     * readyLatch.countDown(), dropping it to 0.
+     * 
+     * 4. The gate opens and stays open forever!
+     * 
+     * Once that latch hits 0, it never blocks, stops, or slows down any of the
+     * thousands of client requests
+     * flooding into the server!
+     */
 
     public TCPServer(int port, MatchingEngine engine) {
         this.port = port;
@@ -96,8 +101,7 @@ flooding into the server!
         try (
                 clientSocket;
                 BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8))
-        ) {
+                        new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 try {
@@ -107,7 +111,7 @@ flooding into the server!
                         // THIS is the line - this is the moment a parsed
                         // message actually reaches MatchingEngine.
 
-                        //IMPORTANT: this is what calls the matching Engine
+                        // IMPORTANT: this is what calls the matching Engine
                         engine.submitNewOrder(message.side, message.price, message.quantity);
                     } else if (message.type == OrderMessageParser.MessageType.CANCEL) {
                         engine.cancelOrder(message.orderId);
@@ -144,4 +148,25 @@ flooding into the server!
         }
         clientThreadPool.shutdown();
     }
+
+    /*
+     * These are used during the testing by TCPServerTest.java
+     * 
+     * 1. awaitReady() (The "Are We Open Yet?" Timer)
+     * What it does: It makes whoever calls it (like a test) pause and wait until
+     * the server's network port is 100% open and ready to accept client
+     * connections.
+     * Why we need it: Instead of guessing or sleeping for a random number of
+     * seconds, this lets our automated tests know the exact millisecond it is safe
+     * to start sending orders without crashing.
+     * 
+     * 2. stop() (The "Closing Time" Button)
+     * What it does: It safely shuts down the entire server when we are done.
+     * How it cleans up in 3 steps:
+     * running = false: Tells the server to stop trying to loop.
+     * serverSocket.close(): Locks the main front door (port 9999), which instantly
+     * stops the server from waiting for new clients.
+     * clientThreadPool.shutdown(): Sends our team of 10 worker threads home so they
+     * don't stay frozen in memory and cause memory leaks!
+     */
 }
