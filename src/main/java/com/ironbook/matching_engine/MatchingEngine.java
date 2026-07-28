@@ -108,7 +108,8 @@ public class MatchingEngine {
         this.sequencerThread.setDaemon(true); // won't prevent JVM shutdown
         this.sequencerThread.start();
 
-        /*
+        /* ****this.sequencerThread.setDaemon(true);****
+        
          * In Java, there are two types of threads: User Threads (the VIPs) and
          * Daemon Threads (the background helpers).
          * 
