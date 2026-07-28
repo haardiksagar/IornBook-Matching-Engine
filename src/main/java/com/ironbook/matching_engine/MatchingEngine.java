@@ -22,17 +22,17 @@ import java.util.concurrent.atomic.AtomicLong;
  * cancelOrder() simultaneously. But NONE of them touch the
  * OrderBook or WriteAheadLog directly. Instead, each call:
  *
- *   1) Builds a lightweight EngineCommand object
- *   2) Drops it into a shared LinkedBlockingQueue
- *   3) Returns immediately (fire-and-forget)
+ * 1) Builds a lightweight EngineCommand object
+ * 2) Drops it into a shared LinkedBlockingQueue
+ * 3) Returns immediately (fire-and-forget)
  *
  * A single dedicated "sequencer" thread sits in a tight loop,
  * pulling commands from the queue one at a time, in strict FIFO
  * order, and executing them:
  *
- *   command = queue.take();    // blocks until something arrives
- *   log(command);              // WAL write
- *   execute(command);          // OrderBook mutation
+ * command = queue.take(); // blocks until something arrives
+ * log(command); // WAL write
+ * execute(command); // OrderBook mutation
  *
  * Because only ONE thread ever reads or writes the OrderBook,
  * there is ZERO lock contention on the hot path. No synchronized,
@@ -50,6 +50,36 @@ public class MatchingEngine {
     // thread TAKEs them out. LinkedBlockingQueue is thread-safe by
     // design - multiple producers, single consumer.
     private final LinkedBlockingQueue<EngineCommand> commandQueue;
+    /*
+     * Think of a LinkedBlockingQueue as a Thread-Safe Conveyor Belt or Inbox Tray.
+     * 
+     * Here is what the three words mean in simple terms:
+     * 
+     * 1. Queue (First-In, First-Out)
+     * Like a line at a grocery store checkout. Whoever drops an order ticket into
+     * the box first gets
+     * their order processed first.
+     * 
+     * 2. Linked (Expandable)
+     * It uses a flexible chain in memory, meaning the inbox can stretch and grow to
+     * hold thousands
+     * of orders without running out of space.
+     * 
+     * 3. Blocking (The Superpower!)
+     * This is why we use it instead of a normal list:
+     * 
+     * (a). No Fighting: 10 worker threads can drop tickets into it at the exact
+     * same millisecond without
+     * crashing or corrupting data.
+     * 
+     * (b). Smart Sleep (take()): If the box is completely empty, the Sequencer
+     * thread automatically
+     * pauses ("blocks") and goes to sleep! The exact millisecond a worker thread
+     * drops a new order
+     * into the box, the queue wakes the Sequencer up. This saves CPU power because
+     * the thread isn't
+     * spinning in an empty loop!
+     */
 
     // The single sequencer thread
     private final Thread sequencerThread;
@@ -80,9 +110,9 @@ public class MatchingEngine {
     }
 
     // ================================================================
-    //  PUBLIC API — called by TCP threads (or tests)
-    //  These methods NEVER touch OrderBook or WAL directly.
-    //  They just build a command and drop it in the queue.
+    // PUBLIC API — called by TCP threads (or tests)
+    // These methods NEVER touch OrderBook or WAL directly.
+    // They just build a command and drop it in the queue.
     // ================================================================
 
     /**
@@ -165,7 +195,7 @@ public class MatchingEngine {
     }
 
     // ================================================================
-    //  PRIVATE — the sequencer loop (runs on a single dedicated thread)
+    // PRIVATE — the sequencer loop (runs on a single dedicated thread)
     // ================================================================
 
     private void enqueueNewOrder(Order order) {
