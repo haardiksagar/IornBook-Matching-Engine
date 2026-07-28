@@ -107,6 +107,23 @@ public class MatchingEngine {
         this.sequencerThread = new Thread(this::sequencerLoop, "sequencer");
         this.sequencerThread.setDaemon(true); // won't prevent JVM shutdown
         this.sequencerThread.start();
+
+        /*
+         * In Java, there are two types of threads: User Threads (the VIPs) and
+         * Daemon Threads (the background helpers).
+         * 
+         * By default, Java will absolutely refuse to close your program if there
+         * is even a single User Thread still running.
+         * 
+         * Because our Sequencer Thread runs in an infinite loop (while(running)),
+         * if we left it as a normal User Thread, the program would hang forever
+         * and refuse to shut down when you try to exit!
+         * 
+         * By calling setDaemon(true), we are telling Java:
+         * "This thread is just a background helper. If the main program finishes
+         * or we try to close the app, do not wait for this loop to finish! Just
+         * kill it immediately and let the program shut down cleanly."
+         */
     }
 
     // ================================================================
@@ -184,7 +201,7 @@ public class MatchingEngine {
      * orders ahead in line, opens our fake envelope at the very back,
      * and presses the buzzer (idle.countDown()). The thread wakes up instantly!
      * 
-     * Timeout: The clock runs out of time (timeout, unit), and the thread wakes
+     * Timeout: The clock runs out of time ( timeout,unit), and the thread wakes
      * up and stops waiting.
      */
 
