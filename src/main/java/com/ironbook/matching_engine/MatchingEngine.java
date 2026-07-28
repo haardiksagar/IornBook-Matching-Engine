@@ -175,6 +175,18 @@ public class MatchingEngine {
         commandQueue.put(new EngineCommand.CancelCommand("__idle_check__", 0, 0, idle));
         idle.await(timeout, unit);
     }
+    /*
+     * What this does: The thread that called this method (like our unit
+     * test) freezes right here at line 176 and waits!
+     * 
+     * It sleeps until one of two things happens:
+     * Success: The Sequencer thread finishes processing all the customer
+     * orders ahead in line, opens our fake envelope at the very back,
+     * and presses the buzzer (idle.countDown()). The thread wakes up instantly!
+     * 
+     * Timeout: The clock runs out of time (timeout, unit), and the thread wakes
+     * up and stops waiting.
+     */
 
     public OrderBook getOrderBook() {
         return orderBook;
