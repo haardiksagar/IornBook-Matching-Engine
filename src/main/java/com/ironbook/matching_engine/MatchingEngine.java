@@ -216,7 +216,7 @@ public class MatchingEngine {
     private void sequencerLoop() {
         while (running) {
             try {
-                // take() blocks until a command is available — no busy-spinning,
+                // take(), blocks until a command is available — no busy-spinning,
                 // no polling, no CPU waste. The thread sleeps until woken.
                 EngineCommand command = commandQueue.take();
 
