@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * A single dedicated "sequencer" thread sits in a tight loop,
  * pulling commands from the queue one at a time, in strict FIFO
- * order, and executing them:
+ * order, and executing them
  *
  * command = queue.take(); // blocks until something arrives
  * log(command); // WAL write
