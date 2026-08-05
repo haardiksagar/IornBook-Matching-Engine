@@ -41,7 +41,7 @@ public class TCPServer {
      * In our TCPServer, readyLatch is only used once when the server boots up:
      * 
      * 1. When you start the program, the server needs a few milliseconds to open
-     * port 9999
+     * port 9999.
      * 
      * 2. During those first few milliseconds, the latch is at 1 (gate closed),
      * telling our tests: "Hold on,
