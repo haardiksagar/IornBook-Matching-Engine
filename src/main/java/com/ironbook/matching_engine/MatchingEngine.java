@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * execute(command); // OrderBook mutation
  *
  * Because only ONE thread ever reads or writes the OrderBook,
- * there is ZERO lock contention on the hot path. No synchronized,
+ * there is ZERO lock contention on the hot path. No synchronization,
  * no ConcurrentHashMap, no race conditions. Order of processing
  * is identical to order of logging, which is identical to replay
  * order on crash recovery. Determinism is automatic.
