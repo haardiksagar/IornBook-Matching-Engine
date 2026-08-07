@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A standalone "Fake Trader Bot" that connects to the running
@@ -74,6 +75,12 @@ public class LoadGenerator {
         // If ordersPerSecond is 0, delayMs is 0 (no sleep = full speed).
         final long delayMs = (ordersPerSecond > 0) ? (1000L / ordersPerSecond) : 0;
 
+        // Shared counter across all threads for progress reporting.
+        // AtomicLong is thread-safe so 5 threads can increment it
+        // simultaneously without corrupting the count.
+        final AtomicLong totalOrdersSent = new AtomicLong(0);
+        final long totalExpected = (long) numClients * ordersPerClient;
+
         // Starting gun: all client threads wait on this latch,
         // then fire simultaneously when countDown() is called.
         CountDownLatch startGun = new CountDownLatch(1);
@@ -93,8 +100,14 @@ public class LoadGenerator {
                         for (int i = 0; i < ordersPerClient; i++) {
                             writer.println(generateRandomOrder(random));
 
+                            // Live progress: print every 1,000 orders so
+                            // the terminal feels alive during long runs.
+                            long sent = totalOrdersSent.incrementAndGet();
+                            if (sent % 1000 == 0) {
+                                System.out.println("  Progress: " + sent + " / " + totalExpected + " orders sent...");
+                            }
+
                             // Rate limiting: pause between orders if configured.
-                            // When delayMs is 0, this is skipped entirely (full speed).
                             if (delayMs > 0) {
                                 Thread.sleep(delayMs);
                             }
@@ -115,12 +128,29 @@ public class LoadGenerator {
 
         // FIRE! All clients begin sending simultaneously.
         System.out.println("All clients connected. Firing!");
+        long startTime = System.currentTimeMillis();
         startGun.countDown();
 
         // Wait for every client to finish
         for (Thread t : clientThreads) {
             t.join(60_000); // 60 second timeout per client
         }
+
+        long endTime = System.currentTimeMillis();
+        long elapsedMs = endTime - startTime;
+
+        // ---- BENCHMARK SUMMARY ----
+        System.out.println();
+        System.out.println("========== BENCHMARK RESULTS ==========");
+        System.out.println("  Total orders sent:  " + totalOrdersSent.get());
+        System.out.println("  Total time:         " + elapsedMs + " ms");
+        if (elapsedMs > 0) {
+            long throughput = (totalOrdersSent.get() * 1000L) / elapsedMs;
+            System.out.println("  Throughput:         " + throughput + " orders/sec");
+            double avgLatencyUs = (elapsedMs * 1000.0) / totalOrdersSent.get();
+            System.out.printf("  Avg latency:        %.1f µs/order%n", avgLatencyUs);
+        }
+        System.out.println("=======================================");
     }
 
     public static void main(String[] args) throws InterruptedException {
