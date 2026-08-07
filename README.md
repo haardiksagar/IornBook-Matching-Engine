@@ -135,6 +135,7 @@ src/main/java/com/ironbook/matching_engine/
 ├── MatchingEngine.java          # Central orchestrator — queue, sequencer, WAL, OrderBook
 ├── EngineCommand.java           # Sealed interface: NewOrderCommand | CancelCommand
 ├── MatchingEngineApplication.java
+├── LoadGenerator.java           # Standalone Fake Trader Bot for benchmarking
 │
 ├── Model/
 │   ├── Order.java               # Immutable-ish order (price in long, not double)
@@ -179,11 +180,12 @@ The `OrderBook` uses plain (non-concurrent) collections (`TreeMap`, `LinkedList`
 | `CrashRecoveryTest` | 4 | WAL durability: orders survive crashes, partial fills recover correctly, cancels persist, sequence numbers don't collide |
 | `TCPServerTest` | 2 | End-to-end integration: real TCP socket → parser → engine → OrderBook, verified with `CountDownLatch` (zero `Thread.sleep`) |
 | `ConcurrencyStressTest` | 2 | Thread safety: 10 threads × 1,000 orders = 10,000 orders processed with zero shares lost or duplicated |
+| `LoadGeneratorTest` | 1 | Benchmarking integration: full end-to-end multi-client load generation over raw TCP |
 
 Run all tests:
 
 ```bash
-./mvnw test -Dtest="OrderBookTest,CrashRecoveryTest,TCPServerTest,ConcurrencyStressTest"
+./mvnw test -Dtest="OrderBookTest,CrashRecoveryTest,TCPServerTest,ConcurrencyStressTest,LoadGeneratorTest"
 ```
 
 ---
@@ -259,10 +261,70 @@ Resting asks after matching: 0
 
 ---
 
+## Load Generator (Fake Trader Bot)
+
+A standalone benchmarking tool that simulates multiple trading clients connecting over real TCP sockets and firing random orders at the engine.
+
+### Quick Start
+
+```bash
+# Terminal 1: Start the engine + TCP server
+./mvnw compile exec:java -Dexec.mainClass="com.ironbook.matching_engine.MatchingEngineApplication"
+
+# Terminal 2: Run the load generator (5 clients × 1,000 orders at full speed)
+./mvnw compile exec:java -Dexec.mainClass="com.ironbook.matching_engine.LoadGenerator"
+```
+
+### CLI Options
+
+```
+Usage: LoadGenerator [options]
+
+Options:
+  --host <hostname>    Server host (default: localhost)
+  --port <port>        Server port (default: 9999)
+  --clients <n>        Number of simultaneous TCP clients (default: 5)
+  --orders <n>         Orders per client (default: 1000)
+  --rate <n>           Orders per second per client, 0 = unlimited (default: 0)
+  --help               Show this help message
+
+Examples:
+  LoadGenerator                              # 5 clients × 1000 orders, full speed
+  LoadGenerator --clients 10 --orders 5000   # 10 clients × 5000 orders
+  LoadGenerator --rate 100                   # 5 clients, throttled to 100 orders/sec each
+```
+
+### Sample Benchmark Output
+
+```
+=== IronBook Load Generator ===
+
+Connecting 5 clients to localhost:9999...
+Each client will send 1000 random orders.
+Rate limit: UNLIMITED (full throttle)
+Total orders: 5000
+
+All clients connected. Firing!
+  Progress: 1000 / 5000 orders sent...
+  Progress: 2000 / 5000 orders sent...
+  Progress: 3000 / 5000 orders sent...
+  Progress: 4000 / 5000 orders sent...
+  Progress: 5000 / 5000 orders sent...
+
+========== BENCHMARK RESULTS ==========
+  Total orders sent:  5000
+  Total time:         312 ms
+  Throughput:         16025 orders/sec
+  Avg latency:        62.4 µs/order
+=======================================
+```
+
+---
+
 ## Future Work
 
 - [ ] FIX protocol support (industry-standard messaging)
 - [ ] WebSocket API for real-time market data streaming
-- [ ] Fake Trader Bot for continuous load testing
 - [ ] Metrics dashboard (throughput, latency percentiles)
 - [ ] Multi-symbol support (separate order book per ticker)
+
