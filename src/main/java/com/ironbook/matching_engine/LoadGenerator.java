@@ -154,14 +154,58 @@ public class LoadGenerator {
     }
 
     public static void main(String[] args) throws InterruptedException {
+        // ---- Parse CLI arguments ----
+        String host = "localhost";
+        int port = 9999;
+        int clients = 5;
+        int orders = 1000;
+        int rate = 0; // 0 = unlimited
+
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "--help" -> {
+                    printUsage();
+                    return;
+                }
+                case "--host" -> host = args[++i];
+                case "--port" -> port = Integer.parseInt(args[++i]);
+                case "--clients" -> clients = Integer.parseInt(args[++i]);
+                case "--orders" -> orders = Integer.parseInt(args[++i]);
+                case "--rate" -> rate = Integer.parseInt(args[++i]);
+                default -> {
+                    System.err.println("Unknown argument: " + args[i]);
+                    printUsage();
+                    return;
+                }
+            }
+        }
+
         System.out.println("=== IronBook Load Generator ===");
         System.out.println();
 
-        // 5 clients, 1000 orders each, 0 = unlimited speed
-        LoadGenerator generator = new LoadGenerator("localhost", 9999, 5, 1000, 0);
+        LoadGenerator generator = new LoadGenerator(host, port, clients, orders, rate);
         generator.run();
 
         System.out.println();
         System.out.println("Done.");
+    }
+
+    private static void printUsage() {
+        System.out.println("=== IronBook Load Generator ===");
+        System.out.println();
+        System.out.println("Usage: LoadGenerator [options]");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  --host <hostname>    Server host (default: localhost)");
+        System.out.println("  --port <port>        Server port (default: 9999)");
+        System.out.println("  --clients <n>        Number of simultaneous TCP clients (default: 5)");
+        System.out.println("  --orders <n>         Orders per client (default: 1000)");
+        System.out.println("  --rate <n>           Orders per second per client, 0 = unlimited (default: 0)");
+        System.out.println("  --help               Show this help message");
+        System.out.println();
+        System.out.println("Examples:");
+        System.out.println("  LoadGenerator                              # 5 clients × 1000 orders, full speed");
+        System.out.println("  LoadGenerator --clients 10 --orders 5000   # 10 clients × 5000 orders");
+        System.out.println("  LoadGenerator --rate 100                   # 5 clients, throttled to 100 orders/sec each");
     }
 }
