@@ -185,6 +185,9 @@ class ConcurrencyStressTest {
     @Test
     void noSharesLostOrDuplicated_simpleVersion() throws Exception {
         String logFilePath = tempDir.resolve("stress-simple.log").toString();
+        /*so tempDir generate a temp directory and gives us the path of that 
+        folder and than we place a file name stress-simple.log in it 
+        and after the work is done we delete the folder*/
         MatchingEngine engine = new MatchingEngine(logFilePath);
 
         CountDownLatch startGun = new CountDownLatch(1);
