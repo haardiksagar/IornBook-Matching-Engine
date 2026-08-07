@@ -308,14 +308,19 @@ All clients connected. Firing!
   Progress: 1000 / 5000 orders sent...
   Progress: 2000 / 5000 orders sent...
   Progress: 3000 / 5000 orders sent...
+  Client 0 finished (1000 orders).
   Progress: 4000 / 5000 orders sent...
+  Client 4 finished (1000 orders).
+  Client 2 finished (1000 orders).
+  Client 3 finished (1000 orders).
   Progress: 5000 / 5000 orders sent...
+  Client 1 finished (1000 orders).
 
 ========== BENCHMARK RESULTS ==========
   Total orders sent:  5000
-  Total time:         312 ms
-  Throughput:         16025 orders/sec
-  Avg latency:        62.4 µs/order
+  Total time:         104 ms
+  Throughput:         48076 orders/sec
+  Avg latency:        20.8 µs/order
 =======================================
 ```
 
