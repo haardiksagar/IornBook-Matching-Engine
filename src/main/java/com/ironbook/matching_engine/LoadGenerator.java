@@ -14,8 +14,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * MatchingEngine's TCP server and fires orders over the network.
  *
  * Usage:
- *   1. Start MatchingEngineApplication (boots engine + TCP server)
- *   2. Run LoadGenerator (connects as multiple clients and sends orders)
+ * 1. Start MatchingEngineApplication (boots engine + TCP server)
+ * 2. Run LoadGenerator (connects as multiple clients and sends orders)
  *
  * This is NOT part of the engine itself — it's an external tool
  * that simulates real trading clients for benchmarking and demos.
@@ -67,13 +67,27 @@ public class LoadGenerator {
     public void run() throws InterruptedException {
         System.out.println("Connecting " + numClients + " clients to " + host + ":" + port + "...");
         System.out.println("Each client will send " + ordersPerClient + " random orders.");
-        System.out.println("Rate limit: " + (ordersPerSecond == 0 ? "UNLIMITED (full throttle)" : ordersPerSecond + " orders/sec per client"));
+        System.out.println("Rate limit: "
+                + (ordersPerSecond == 0 ? "UNLIMITED (full throttle)" : ordersPerSecond + " orders/sec per client"));
         System.out.println("Total orders: " + (numClients * ordersPerClient));
         System.out.println();
 
         // Calculate delay between orders for rate limiting.
         // If ordersPerSecond is 0, delayMs is 0 (no sleep = full speed).
         final long delayMs = (ordersPerSecond > 0) ? (1000L / ordersPerSecond) : 0;
+        /*
+         * There are 1,000 milliseconds in 1 second.
+         * 
+         * If you want to send 10 orders per second, you divide 1,000 by 10. 1000 / 10 =
+         * 100.
+         * 
+         * This tells the thread to wait exactly 100 milliseconds between each order. By
+         * sleeping for 100ms after every single order, it perfectly spaces out exactly
+         * 10 orders across one full second!
+         * 
+         * (The L in 1000L just tells Java to treat the number as a long data type,
+         * which is what Thread.sleep() requires).
+         */
 
         // Shared counter across all threads for progress reporting.
         // AtomicLong is thread-safe so 5 threads can increment it
@@ -95,7 +109,7 @@ public class LoadGenerator {
                     startGun.await(); // wait for the starting gun
 
                     try (Socket socket = new Socket(host, port);
-                         PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
+                            PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
 
                         for (int i = 0; i < ordersPerClient; i++) {
                             writer.println(generateRandomOrder(random));
@@ -206,6 +220,7 @@ public class LoadGenerator {
         System.out.println("Examples:");
         System.out.println("  LoadGenerator                              # 5 clients × 1000 orders, full speed");
         System.out.println("  LoadGenerator --clients 10 --orders 5000   # 10 clients × 5000 orders");
-        System.out.println("  LoadGenerator --rate 100                   # 5 clients, throttled to 100 orders/sec each");
+        System.out
+                .println("  LoadGenerator --rate 100                   # 5 clients, throttled to 100 orders/sec each");
     }
 }
