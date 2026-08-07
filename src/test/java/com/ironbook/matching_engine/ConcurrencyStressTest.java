@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * The fundamental invariant we're checking:
  *
- *   total shares submitted = total shares matched + total shares resting
+ * total shares submitted = total shares matched + total shares resting
  *
  * If even ONE share is lost (race condition ate it) or duplicated
  * (double-fill), this equation breaks and the test fails.
@@ -95,19 +95,19 @@ class ConcurrencyStressTest {
 
         // ---- THE INVARIANT CHECK ----
         // Total shares submitted:
-        //   10 threads × 1,000 orders × 5 shares = 50,000 shares
-        //   Split evenly: 25,000 BUY shares + 25,000 SELL shares
+        // 10 threads × 1,000 orders × 5 shares = 50,000 shares
+        // Split evenly: 25,000 BUY shares + 25,000 SELL shares
         //
         // Since BUY and SELL are at the same price, they WILL match.
         // Every BUY share should find a SELL share to match against.
         //
         // After all matching is done:
-        //   - shares_matched_on_buy_side + shares_still_resting_as_bids = 25,000
-        //   - shares_matched_on_sell_side + shares_still_resting_as_asks = 25,000
+        // - shares_matched_on_buy_side + shares_still_resting_as_bids = 25,000
+        // - shares_matched_on_sell_side + shares_still_resting_as_asks = 25,000
         //
         // And since both sides have equal quantity at the same price:
-        //   - resting bids should be 0 (or resting asks should be 0)
-        //   - total matched = 25,000 (all shares find a counterpart)
+        // - resting bids should be 0 (or resting asks should be 0)
+        // - total matched = 25,000 (all shares find a counterpart)
 
         int totalSubmittedPerSide = (THREADS / 2) * ORDERS_PER_THREAD * qtyPerOrder;
 
@@ -121,14 +121,14 @@ class ConcurrencyStressTest {
         // difference should be 0.
         assertEquals(restingBidShares, restingAskShares,
                 "Both sides submitted equal quantities at the same price, "
-                + "so resting quantities should be equal (ideally both 0). "
-                + "If they differ, shares were lost or duplicated.");
+                        + "so resting quantities should be equal (ideally both 0). "
+                        + "If they differ, shares were lost or duplicated.");
 
         // The total resting across both sides should be 0 if everything matched
         assertEquals(0, restingBidShares + restingAskShares,
                 "All BUY shares should have matched against SELL shares "
-                + "(same price, equal quantities). If shares are left resting, "
-                + "some matches were lost to a concurrency bug.");
+                        + "(same price, equal quantities). If shares are left resting, "
+                        + "some matches were lost to a concurrency bug.");
 
         System.out.println("Stress test passed!");
         System.out.println("  Threads: " + THREADS);
@@ -158,11 +158,11 @@ class ConcurrencyStressTest {
             }
             // Move to the next price level
             if (side == Side.BUY) {
-                entry = ((java.util.TreeMap<Long, Queue<Order>>)
-                        getBookField(engine, side)).higherEntry(entry.getKey());
+                entry = ((java.util.TreeMap<Long, Queue<Order>>) getBookField(engine, side))
+                        .higherEntry(entry.getKey());
             } else {
-                entry = ((java.util.TreeMap<Long, Queue<Order>>)
-                        getBookField(engine, side)).higherEntry(entry.getKey());
+                entry = ((java.util.TreeMap<Long, Queue<Order>>) getBookField(engine, side))
+                        .higherEntry(entry.getKey());
             }
         }
         return total;
@@ -185,9 +185,11 @@ class ConcurrencyStressTest {
     @Test
     void noSharesLostOrDuplicated_simpleVersion() throws Exception {
         String logFilePath = tempDir.resolve("stress-simple.log").toString();
-        /*so tempDir generate a temp directory and gives us the path of that 
-        folder and than we place a file name stress-simple.log in it 
-        and after the work is done we delete the folder*/
+        /*
+         * so tempDir generate a temp directory and gives us the path of that
+         * folder and than we place a file name stress-simple.log in it
+         * and after the work is done we delete the folder
+         */
         MatchingEngine engine = new MatchingEngine(logFilePath);
 
         CountDownLatch startGun = new CountDownLatch(1);
@@ -214,6 +216,10 @@ class ConcurrencyStressTest {
 
         startGun.countDown();
 
+        /*
+         * Since it is in a for loop, the main program waits for Thread 1
+         * to finish, then Thread 2, all the way to Thread 10.
+         */
         for (Thread t : threads) {
             t.join(30_000);
         }
@@ -228,7 +234,7 @@ class ConcurrencyStressTest {
         assertNull(engine.getOrderBook().bestAsk(),
                 "No asks should remain - all should have matched");
 
-        System.out.println("Simple stress test passed! " 
+        System.out.println("Simple stress test passed! "
                 + (THREADS * ORDERS_PER_THREAD) + " orders processed correctly.");
 
         engine.shutdown();
