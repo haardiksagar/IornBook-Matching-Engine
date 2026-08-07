@@ -25,6 +25,7 @@ public class LoadGenerator {
     private final int port;
     private final int numClients;
     private final int ordersPerClient;
+    private final int ordersPerSecond; // 0 = unlimited (full throttle)
 
     // Price range for random order generation.
     // Using a tight range (90-110) ensures heavy matching:
@@ -34,11 +35,12 @@ public class LoadGenerator {
     private static final int MIN_QTY = 1;
     private static final int MAX_QTY = 20;
 
-    public LoadGenerator(String host, int port, int numClients, int ordersPerClient) {
+    public LoadGenerator(String host, int port, int numClients, int ordersPerClient, int ordersPerSecond) {
         this.host = host;
         this.port = port;
         this.numClients = numClients;
         this.ordersPerClient = ordersPerClient;
+        this.ordersPerSecond = ordersPerSecond;
     }
 
     /**
@@ -64,8 +66,13 @@ public class LoadGenerator {
     public void run() throws InterruptedException {
         System.out.println("Connecting " + numClients + " clients to " + host + ":" + port + "...");
         System.out.println("Each client will send " + ordersPerClient + " random orders.");
+        System.out.println("Rate limit: " + (ordersPerSecond == 0 ? "UNLIMITED (full throttle)" : ordersPerSecond + " orders/sec per client"));
         System.out.println("Total orders: " + (numClients * ordersPerClient));
         System.out.println();
+
+        // Calculate delay between orders for rate limiting.
+        // If ordersPerSecond is 0, delayMs is 0 (no sleep = full speed).
+        final long delayMs = (ordersPerSecond > 0) ? (1000L / ordersPerSecond) : 0;
 
         // Starting gun: all client threads wait on this latch,
         // then fire simultaneously when countDown() is called.
@@ -85,6 +92,12 @@ public class LoadGenerator {
 
                         for (int i = 0; i < ordersPerClient; i++) {
                             writer.println(generateRandomOrder(random));
+
+                            // Rate limiting: pause between orders if configured.
+                            // When delayMs is 0, this is skipped entirely (full speed).
+                            if (delayMs > 0) {
+                                Thread.sleep(delayMs);
+                            }
                         }
                     }
                     System.out.println("  Client " + clientId + " finished (" + ordersPerClient + " orders).");
@@ -114,7 +127,8 @@ public class LoadGenerator {
         System.out.println("=== IronBook Load Generator ===");
         System.out.println();
 
-        LoadGenerator generator = new LoadGenerator("localhost", 9999, 5, 1000);
+        // 5 clients, 1000 orders each, 0 = unlimited speed
+        LoadGenerator generator = new LoadGenerator("localhost", 9999, 5, 1000, 0);
         generator.run();
 
         System.out.println();
