@@ -1,5 +1,6 @@
 package com.ironbook.matching_engine;
 
+import com.ironbook.matching_engine.LoadGen.LoadGenerator;
 import com.ironbook.matching_engine.Network.TCPServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
