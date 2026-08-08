@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.ArrayList;
 import com.ironbook.matching_engine.Model.Trade;
 import com.ironbook.matching_engine.Model.Snapshot;
+import com.ironbook.matching_engine.Model.Snapshot.PriceLevel;
 import java.util.AbstractMap;
 import java.util.List;
 
@@ -215,21 +216,21 @@ public class OrderBook {
     }
 
     public Snapshot getSnapshot(int levels) {
-        List<Map.Entry<Long, Integer>> bids = new ArrayList<>();
-        List<Map.Entry<Long, Integer>> asks = new ArrayList<>();
+        List<PriceLevel> bids = new ArrayList<>();
+        List<PriceLevel> asks = new ArrayList<>();
 
         int count = 0;
         for (Map.Entry<Long, Queue<Order>> entry : bidBook.entrySet()) {
             if (count++ >= levels) break;
             int totalVolume = entry.getValue().stream().mapToInt(Order::getRemainingQuantity).sum();
-            bids.add(new AbstractMap.SimpleEntry<>(entry.getKey(), totalVolume));
+            bids.add(new PriceLevel(entry.getKey(), totalVolume));
         }
 
         count = 0;
         for (Map.Entry<Long, Queue<Order>> entry : askBook.entrySet()) {
             if (count++ >= levels) break;
             int totalVolume = entry.getValue().stream().mapToInt(Order::getRemainingQuantity).sum();
-            asks.add(new AbstractMap.SimpleEntry<>(entry.getKey(), totalVolume));
+            asks.add(new PriceLevel(entry.getKey(), totalVolume));
         }
 
         return new Snapshot(bids, asks);
