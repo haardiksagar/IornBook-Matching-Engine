@@ -37,7 +37,8 @@ import java.util.concurrent.TimeUnit;
 @Warmup(iterations = 3, time = 2)
 @Measurement(iterations = 5, time = 3)
 @Fork(1)
-@Threads(4)                              // 4 threads submitting simultaneously
+// Thread count is NOT hardcoded here — it's set per-run in main()
+// so we can compare 1, 2, 4, and 8 threads in a single benchmark session.
 public class ConcurrentEngineBenchmark {
 
     private MatchingEngine engine;
@@ -119,17 +120,29 @@ public class ConcurrentEngineBenchmark {
     }
 
     /**
-     * Run from IDE for quick iteration.
-     * For clean results, use: java -jar target/benchmarks.jar ConcurrentEngineBenchmark
+     * Runs the benchmark at multiple thread counts (1, 2, 4, 8)
+     * to produce a scaling comparison table.
+     *
+     * For clean results from the jar:
+     *   java -jar target/benchmarks.jar ConcurrentEngineBenchmark -t 4
+     *
+     * From IDE, this main() automatically iterates all thread counts.
      */
     public static void main(String[] args) throws RunnerException {
-        Options opt = new OptionsBuilder()
-                .include(ConcurrentEngineBenchmark.class.getSimpleName())
-                .forks(1)
-                .warmupIterations(3)
-                .measurementIterations(5)
-                .build();
+        int[] threadCounts = {1, 2, 4, 8};
 
-        new Runner(opt).run();
+        for (int threads : threadCounts) {
+            System.out.println("\n>>> Running with " + threads + " thread(s)...\n");
+
+            Options opt = new OptionsBuilder()
+                    .include(ConcurrentEngineBenchmark.class.getSimpleName())
+                    .forks(1)
+                    .threads(threads)
+                    .warmupIterations(3)
+                    .measurementIterations(5)
+                    .build();
+
+            new Runner(opt).run();
+        }
     }
 }
