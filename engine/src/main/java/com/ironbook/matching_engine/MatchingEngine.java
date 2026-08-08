@@ -5,12 +5,17 @@ import com.ironbook.matching_engine.Log.LogReplayer;
 import com.ironbook.matching_engine.Log.WriteAheadLog;
 import com.ironbook.matching_engine.Model.Order;
 import com.ironbook.matching_engine.Model.Side;
+import com.ironbook.matching_engine.Model.Trade;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import com.ironbook.matching_engine.Model.Snapshot;
 
 /**
  * The central orchestrator. Ties OrderBook, WriteAheadLog, and
@@ -45,6 +50,7 @@ public class MatchingEngine {
     private final OrderBook orderBook;
     private final WriteAheadLog writeAheadLog;
     private final AtomicLong sequenceCounter;
+    private final List<EngineEventListener> listeners = new CopyOnWriteArrayList<>();
 
     // The shared queue: TCP threads PUT commands in, the sequencer
     // thread TAKEs them out. LinkedBlockingQueue is thread-safe by
@@ -210,6 +216,22 @@ public class MatchingEngine {
         return orderBook;
     }
 
+    public void addListener(EngineEventListener listener) {
+        listeners.add(listener);
+    }
+
+    public Snapshot getSnapshot(int levels) {
+        AtomicReference<Snapshot> resultRef = new AtomicReference<>();
+        CountDownLatch done = new CountDownLatch(1);
+        try {
+            commandQueue.put(new EngineCommand.SnapshotCommand(resultRef, done));
+            done.await(5, TimeUnit.SECONDS); // Timeout to avoid hanging forever
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return resultRef.get();
+    }
+
     /**
      * Graceful shutdown: stop the sequencer, then close the WAL.
      */
@@ -283,14 +305,26 @@ public class MatchingEngine {
         switch (command) {
             case EngineCommand.NewOrderCommand cmd -> {
                 writeAheadLog.append(cmd.order());
-                orderBook.submitOrder(cmd.order());
+                List<Trade> trades = orderBook.submitOrder(cmd.order());
+                for (EngineEventListener listener : listeners) {
+                    listener.onOrderAdded(cmd.order());
+                    for (Trade trade : trades) {
+                        listener.onTrade(trade);
+                    }
+                }
             }
             case EngineCommand.CancelCommand cmd -> {
                 // Skip the dummy idle-check commands (no real cancel to log)
                 if (!"__idle_check__".equals(cmd.orderId())) {
                     writeAheadLog.appendCancel(cmd.orderId(), cmd.timestamp(), cmd.sequenceNumber());
                     orderBook.cancelOrder(cmd.orderId());
+                    for (EngineEventListener listener : listeners) {
+                        listener.onOrderCanceled(cmd.orderId());
+                    }
                 }
+            }
+            case EngineCommand.SnapshotCommand cmd -> {
+                cmd.resultRef().set(orderBook.getSnapshot(20)); // Get top 20 levels
             }
         }
     }
