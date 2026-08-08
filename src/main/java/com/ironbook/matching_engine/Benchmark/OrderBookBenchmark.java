@@ -88,7 +88,7 @@ public class OrderBookBenchmark {
         int quantity = 1 + random.nextInt(20);
 
         Order order = makeOrder(side, price, quantity);
-        List trades = orderBook.submitOrder(order);
+        List<Trade> trades = orderBook.submitOrder(order);
 
         blackhole.consume(trades);
     }
