@@ -50,7 +50,7 @@ public class OrderBookBenchmark {
      * This is NOT measured - only the @Benchmark method is timed.
      * We pre-seed the book with some resting orders on both sides
      * so the benchmark measures a realistic "live book" scenario,
-     * not an always-empty book (which would only ever rest, never match).
+     * not an always-empty book (which would only ever rest, never match)
      */
     @Setup(Level.Trial)
     public void setUp() {
