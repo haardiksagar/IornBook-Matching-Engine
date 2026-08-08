@@ -72,4 +72,26 @@ public class OrderBookBenchmark {
         }
     }
 
+    /**
+     * The actual thing being benchmarked: submit one randomly
+     * generated order and measure how long that takes.
+     *
+     * Blackhole.consume() prevents the JVM from deciding "nobody
+     * uses this List<Trade> result, so I'll skip running the code
+     * entirely" - without this, JMH would report impossibly fast
+     * times because the work was silently eliminated.
+     */
+    @Benchmark
+    public void submitRandomOrder(Blackhole blackhole) {
+        Side side = random.nextBoolean() ? Side.BUY : Side.SELL;
+        long price = MIN_PRICE + random.nextInt(11); // random price between 95-105
+        int quantity = 1 + random.nextInt(20);
+
+        Order order = makeOrder(side, price, quantity);
+        List trades = orderBook.submitOrder(order);
+
+        blackhole.consume(trades);
+    }
+
+    
 }
