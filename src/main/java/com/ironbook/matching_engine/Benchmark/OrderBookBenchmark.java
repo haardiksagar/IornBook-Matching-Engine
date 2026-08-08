@@ -83,15 +83,13 @@ public class OrderBookBenchmark {
      * times because the work was silently eliminated.
      */
     @Benchmark
-    public void submitRandomOrder(Blackhole blackhole) {
+    public Object submitRandomOrder() {
         Side side = random.nextBoolean() ? Side.BUY : Side.SELL;
         long price = MIN_PRICE + random.nextInt(11); // random price between 95-105
         int quantity = 1 + random.nextInt(20);
 
         Order order = makeOrder(side, price, quantity);
-        List<Trade> trades = orderBook.submitOrder(order);
-
-        blackhole.consume(trades);
+        return orderBook.submitOrder(order);
     }
 
     /**
@@ -100,8 +98,8 @@ public class OrderBookBenchmark {
      * firstEntry() performance from the matching logic overhead.
      */
     @Benchmark
-    public void bestAskLookup(Blackhole blackhole) {
-        blackhole.consume(orderBook.bestAsk());
+    public Object bestAskLookup() {
+        return orderBook.bestAsk();
     }
 
     private Order makeOrder(Side side, long price, int quantity) {
