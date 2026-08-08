@@ -359,3 +359,11 @@ All clients connected. Firing!
 - [ ] Metrics dashboard (throughput, latency percentiles)
 - [ ] Multi-symbol support (separate order book per ticker)
 
+
+## ?? Next.js Live Dashboard (TICKET-21)
+To view the premium visual dashboard:
+1. Start the Spring Boot backend: `./mvnw spring-boot:run -pl web`
+2. Start the dashboard in a new terminal: `cd dashboard && npm run dev`
+3. Open `http://localhost:3000`
+4. Run the LoadGenerator to watch the dashboard light up!
+
