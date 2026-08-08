@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IronBook Matching Engine Live Demo</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background-color: #f4f4f9; }
+        .container { display: flex; gap: 20px; }
+        .column { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        .buy { color: green; }
+        .sell { color: red; }
+        #tradesList { max-height: 400px; overflow-y: auto; }
+    </style>
+    <!-- SockJS and STOMP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+
+    <h1>IronBook Matching Engine Live Demo</h1>
+    <div class="container">
+        <!-- Order Book -->
+        <div class="column">
+            <h2>Live Order Book (REST Snapshot)</h2>
+            <button onclick="fetchOrderBook()">Refresh Order Book</button>
+            <div style="display: flex; gap: 20px; margin-top: 20px;">
+                <div style="flex: 1;">
+                    <h3 class="buy">Bids</h3>
+                    <table>
+                        <thead><tr><th>Price</th><th>Volume</th></tr></thead>
+                        <tbody id="bidsBody"></tbody>
+                    </table>
+                </div>
+                <div style="flex: 1;">
+                    <h3 class="sell">Asks</h3>
+                    <table>
+                        <thead><tr><th>Price</th><th>Volume</th></tr></thead>
+                        <tbody id="asksBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trades -->
+        <div class="column">
+            <h2>Live Trades (WebSocket)</h2>
+            <div id="tradesList">
+                <table>
+                    <thead><tr><th>Time</th><th>Price</th><th>Volume</th></tr></thead>
+                    <tbody id="tradesBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- REST API Fetch ---
+        async function fetchOrderBook() {
+            try {
+                const response = await fetch('/api/book');
+                const data = await response.json();
+                
+                const bidsBody = document.getElementById('bidsBody');
+                bidsBody.innerHTML = '';
+                data.topBids.forEach(entry => {
+                    bidsBody.innerHTML += `<tr><td>${entry.key}</td><td>${entry.value}</td></tr>`;
+                });
+
+                const asksBody = document.getElementById('asksBody');
+                asksBody.innerHTML = '';
+                data.topAsks.forEach(entry => {
+                    asksBody.innerHTML += `<tr><td>${entry.key}</td><td>${entry.value}</td></tr>`;
+                });
+            } catch (err) {
+                console.error("Error fetching order book:", err);
+            }
+        }
+
+        // Fetch initially
+        fetchOrderBook();
+        // Auto-refresh every 2 seconds
+        setInterval(fetchOrderBook, 2000);
+
+        // --- WebSocket Connection ---
+        const socket = new SockJS('/ws-engine');
+        const stompClient = Stomp.over(socket);
+        stompClient.debug = null; // Disable debug logging
+
+        stompClient.connect({}, function (frame) {
+            console.log('Connected to WebSocket!');
+            
+            // Subscribe to trades
+            stompClient.subscribe('/topic/trades', function (message) {
+                const trade = JSON.parse(message.body);
+                const tradesBody = document.getElementById('tradesBody');
+                
+                // Add new trade at the top
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${new Date(trade.timestamp).toLocaleTimeString()}</td>
+                                 <td>${trade.price}</td>
+                                 <td>${trade.quantity}</td>`;
+                tradesBody.insertBefore(row, tradesBody.firstChild);
+
+                // Keep only last 20 trades in UI
+                if (tradesBody.children.length > 20) {
+                    tradesBody.removeChild(tradesBody.lastChild);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
