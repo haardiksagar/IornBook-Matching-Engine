@@ -90,7 +90,27 @@ public class ConcurrentEngineBenchmark {
      * them as fast as it can on the other end.
      */
     @Benchmark
-    public void submitRandomOrder(ThreadState threadState) {
+    public void submitRandomOrder_throughput(ThreadState threadState) {
+        Side side = threadState.random.nextBoolean() ? Side.BUY : Side.SELL;
+        long price = MIN_PRICE + threadState.random.nextInt(11);
+        int quantity = 1 + threadState.random.nextInt(20);
+
+        engine.submitNewOrder(side, price, quantity);
+    }
+
+    /**
+     * Same operation, but measured as AVERAGE TIME instead of throughput.
+     * This tells us: "How long does a single submitNewOrder() call take
+     * on average?" — reported in microseconds.
+     *
+     * Since submitNewOrder() is fire-and-forget (it just enqueues),
+     * this measures queue insertion latency under contention, not
+     * the full matching latency.
+     */
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    @OutputTimeUnit(TimeUnit.MICROSECONDS)
+    public void submitRandomOrder_latency(ThreadState threadState) {
         Side side = threadState.random.nextBoolean() ? Side.BUY : Side.SELL;
         long price = MIN_PRICE + threadState.random.nextInt(11);
         int quantity = 1 + threadState.random.nextInt(20);
