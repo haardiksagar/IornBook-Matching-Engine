@@ -224,7 +224,7 @@ public class MatchingEngine {
         AtomicReference<Snapshot> resultRef = new AtomicReference<>();
         CountDownLatch done = new CountDownLatch(1);
         try {
-            commandQueue.put(new EngineCommand.SnapshotCommand(resultRef, done));
+            commandQueue.put(new EngineCommand.SnapshotCommand(levels, resultRef, done));
             done.await(5, TimeUnit.SECONDS); // Timeout to avoid hanging forever
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -324,7 +324,7 @@ public class MatchingEngine {
                 }
             }
             case EngineCommand.SnapshotCommand cmd -> {
-                cmd.resultRef().set(orderBook.getSnapshot(20)); // Get top 20 levels
+                cmd.resultRef().set(orderBook.getSnapshot(cmd.levels()));
             }
         }
     }

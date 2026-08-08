@@ -60,7 +60,8 @@ public sealed interface EngineCommand {
      * "Get a snapshot of the OrderBook."
      * Runs on the sequencer thread to safely read state.
      */
-    record SnapshotCommand(java.util.concurrent.atomic.AtomicReference<com.ironbook.matching_engine.Model.Snapshot> resultRef,
+    record SnapshotCommand(int levels,
+                           java.util.concurrent.atomic.AtomicReference<com.ironbook.matching_engine.Model.Snapshot> resultRef,
                            CountDownLatch doneLatch) implements EngineCommand {
         @Override
         public CountDownLatch getDoneLatch() {
