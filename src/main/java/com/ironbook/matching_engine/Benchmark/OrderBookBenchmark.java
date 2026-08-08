@@ -93,5 +93,38 @@ public class OrderBookBenchmark {
         blackhole.consume(trades);
     }
 
-    
+    /**
+     * A second benchmark: what does a pure cache-warm bestAsk()
+     * lookup cost on its own? This isolates the skip list's
+     * firstEntry() performance from the matching logic overhead.
+     */
+    @Benchmark
+    public void bestAskLookup(Blackhole blackhole) {
+        blackhole.consume(orderBook.bestAsk());
+    }
+
+    private Order makeOrder(Side side, long price, int quantity) {
+        long seq = sequenceCounter.incrementAndGet();
+        String orderId = "O-" + seq;
+        long timestamp = System.currentTimeMillis();
+        return new Order(orderId, side, price, quantity, timestamp, seq);
+    }
+
+    /**
+     * Lets you run the benchmark directly from your IDE
+     * without needing to build the fat jar first.
+     * Results won't be quite as clean as the jar run
+     * (slight JVM pollution from IDE itself) but good
+     * enough for quick iteration while developing.
+     */
+    public static void main(String[] args) throws RunnerException {
+        Options opt = new OptionsBuilder()
+                .include(OrderBookBenchmark.class.getSimpleName())
+                .forks(1)
+                .warmupIterations(3)
+                .measurementIterations(5)
+                .build();
+
+        new Runner(opt).run();
+    }
 }
