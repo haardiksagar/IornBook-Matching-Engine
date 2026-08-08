@@ -3,6 +3,7 @@ package com.ironbook.matching_engine.Benchmark;
 import com.ironbook.matching_engine.Book.OrderBook;
 import com.ironbook.matching_engine.Model.Order;
 import com.ironbook.matching_engine.Model.Side;
+import com.ironbook.matching_engine.Model.Trade;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
